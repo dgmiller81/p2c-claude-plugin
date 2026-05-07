@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "p2c-marketplace",
+  "description": "Local marketplace hosting the p2c (Product-to-Customer) orchestration plugin.",
+  "owner": {
+    "name": "Local"
+  },
+  "plugins": [
+    {
+      "name": "p2c",
+      "description": "Product-to-Customer orchestration. Walks a product owner / product manager through every phase of taking an idea to a shipped product (Discovery → Validation → Requirements → Design → Architecture → Build → Test → Launch → Measure). Spawns specialized sub-agents (Product Owner, Scrum Master, Lead Architect, Lead Developer, Lead QA, Business Analyst, Research/Marketing). Commands: /p2c:full, /p2c:product, /p2c:design, /p2c:tech-scope, /p2c:tech-build, /p2c:tech-prod, /p2c:launch, /p2c:poc, /p2c:help.",
+      "category": "productivity",
+      "source": "./plugins/p2c"
+    }
+  ]
+}
