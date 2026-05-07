@@ -1,9 +1,22 @@
 {
   "name": "p2c",
   "version": "0.1.0",
-  "description": "Product-to-Customer orchestration skill. Walks a product owner/manager through 8 phases from idea to launch using specialized sub-agents (Product Owner, Scrum Master, Lead Architect, Lead Developer, Lead QA, Business Analyst, Research/Marketing). Includes visual web-based guidance, web research, sprint estimation, and detailed cost modeling.",
-  "author": "p2c skill builder",
-  "commands": ["./commands"],
-  "agents": ["./agents"],
-  "skills": ["./skills"]
+  "description": "Product-to-Customer orchestration plugin. Walks a product owner/manager through 8 phases from idea to launch using specialized sub-agents (Product Owner, Scrum Master, Lead Architect, Lead Developer, Lead QA, Business Analyst, Research/Marketing). Includes visual web-based guidance, web research, sprint estimation, and detailed cost modeling.",
+  "author": {
+    "name": "dgmiller81",
+    "url": "https://github.com/dgmiller81"
+  },
+  "homepage": "https://github.com/dgmiller81/p2c-claude-plugin",
+  "repository": "https://github.com/dgmiller81/p2c-claude-plugin",
+  "license": "MIT",
+  "keywords": [
+    "product-management",
+    "product-owner",
+    "scrum",
+    "orchestration",
+    "sprint-planning",
+    "cost-estimation",
+    "poc",
+    "mvp"
+  ]
 }
