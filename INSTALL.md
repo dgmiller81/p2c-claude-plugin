@@ -19,14 +19,19 @@ p2c-skill/
 
 ## Install (recommended — gives `:` namespacing)
 
-In Claude Code, run these two slash commands:
+In Claude Code, install from GitHub:
 
 ```
-/plugin marketplace add H:\dev\skills\p2c-skill
+/plugin marketplace add dgmiller81/p2c-claude-plugin
 /plugin install p2c@p2c-marketplace
 ```
 
-(On macOS / Linux replace the path with wherever you put `p2c-skill/`.)
+Or from a local clone:
+
+```
+/plugin marketplace add /path/to/p2c-claude-plugin
+/plugin install p2c@p2c-marketplace
+```
 
 Then restart Claude Code (or `/plugin reload` if your version supports it). The skill, agents, and the following commands should be available:
 

@@ -39,10 +39,17 @@ Each agent operates in its own lane with very specific outputs:
 
 ## Installation
 
-In Claude Code:
+In Claude Code, install directly from this repo:
 
 ```
-/plugin marketplace add H:\dev\skills\p2c-skill
+/plugin marketplace add dgmiller81/p2c-claude-plugin
+/plugin install p2c@p2c-marketplace
+```
+
+Or, from a local clone:
+
+```
+/plugin marketplace add /path/to/p2c-claude-plugin
 /plugin install p2c@p2c-marketplace
 ```
 
