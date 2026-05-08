@@ -47,13 +47,18 @@ Then restart Claude Code (or `/plugin reload` if your version supports it). The 
 
 ## Updating the plugin
 
-After editing files in `plugins/p2c/`, run:
+To force Claude Code to check for and pull updates from the marketplace:
 
 ```
-/plugin update p2c@p2c-marketplace
+/plugin marketplace update p2c-marketplace
+/plugin install p2c@p2c-marketplace
 ```
 
-…or restart Claude Code to pick up changes from the same marketplace path.
+The first line refreshes the marketplace metadata (re-fetches the GitHub repo's `.claude-plugin/marketplace.json` and any plugin source paths it points to). The second re-installs the plugin from that refreshed cache, so new commits land in the active install.
+
+To enable auto-update at startup, open `/plugin`, go to the **Marketplaces** tab, and toggle **Enable auto-update** for `p2c-marketplace`. With auto-update on, Claude Code refreshes the marketplace and updates installed plugins on every launch.
+
+There is no built-in "update all plugins" command — update them one at a time, or rely on auto-update.
 
 ## Uninstall
 

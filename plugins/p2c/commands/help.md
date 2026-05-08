@@ -33,7 +33,8 @@ Idea → shipped product, with a coordinated team of specialized sub-agents and 
 | **product-owner** | PRD, JTBD, prioritization, kill criteria, post-launch product calls |
 | **scrum-master** | Story breakdown, sprint planning, ceremonies, velocity, link stories ↔ components |
 | **lead-architect** | C4 diagrams, ADRs, stack, data model, threat model, observability |
-| **lead-developer** | Walking skeleton, vertical slices, code structure, CI, **POC implementation** |
+| **lead-ux-designer** | **Mockups (mandatory)**, wireframes, prototypes, design tokens, component library, brand application, accessibility, design handoff |
+| **lead-developer** | Walking skeleton, vertical slices, code structure, CI, **POC implementation**, wiring design tokens into the codebase |
 | **lead-qa-coordinator** | Test plan, regression, security, performance, a11y, launch QA gate |
 | **business-analyst** | BRD, requirements traceability matrix, gap analysis, compliance |
 | **research-marketing** | Market research, competitive scan, GTM, positioning, launch comms, growth experiments |
@@ -76,6 +77,19 @@ These apply across all p2c commands:
 2. Paste a brief, link to existing docs, or just describe the idea. **If you have brand assets** (logo, palette, typography, brand book) share them up front — the mockups will pick them up.
 3. The orchestrator reads your inputs, does background research, and starts asking the first cluster of phase questions.
 4. Approve / push back on the deliverables as they land. Mockups in particular need explicit approval before the orchestrator will move to architecture or code.
+
+### Updating the plugin
+
+To force a refresh from the source repo and pull the latest plugin version:
+
+```
+/plugin marketplace update p2c-marketplace
+/plugin install p2c@p2c-marketplace
+```
+
+The first line refreshes marketplace metadata from `dgmiller81/p2c-claude-plugin`. The second re-installs the plugin from that refreshed marketplace, picking up any new commits.
+
+To enable auto-update so this happens at startup: open `/plugin`, go to the **Marketplaces** tab, and toggle **Enable auto-update** on `p2c-marketplace`.
 
 ---
 

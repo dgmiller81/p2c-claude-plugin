@@ -27,6 +27,7 @@ The user has invoked the **full p2c flow**. Activate the `p2c` skill and run all
 4. Briefly summarize what you found and propose where to start (resume vs. start fresh).
 5. Offer to start the visual server (`scripts/start_visual_server.py`).
 6. Begin Phase 1 with the **product-owner** + **business-analyst** + **research-marketing** agents.
+7. At Phase 3, dispatch the **lead-ux-designer** as the lead — they own the mockups, tokens, components, accessibility, and brand application. The orchestrator does not advance to Phase 4 until the UX designer signs off and the user has approved the mockups.
 
 ## Absolute rules
 
