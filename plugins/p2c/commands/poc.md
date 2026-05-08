@@ -14,15 +14,24 @@ This is the **flagship all-in-one** command. The user wants:
 
 Activate the `p2c` skill in full-orchestration mode but with a **POC-first** posture: phases 1–4 are condensed (assume validated unless missing), phase 5 splits into POC build + production sprint plan, phases 6–8 are planned (not executed).
 
+## Absolute rules for this command
+
+These are inherited from `SKILL.md` and `references/visual-standards.md` — repeated here because they govern this command:
+
+1. **Every phase listed in the active flow below must be completed** unless the user explicitly skips an item with a recorded reason in `status.json`. There are no silent gaps.
+2. **Mockups are mandatory before any code is written.** Phase 3 is **not** marked `delivered` without high-fidelity mockups for every key MVP screen. The build leg of this command does not start until those mockups exist.
+3. **Mockups must be enterprise-grade** — match the user's brand if provided, otherwise apply the Enterprise Default Style from `references/visual-standards.md`.
+4. **Production design specs in the final package include the mockups** (Figma link or `mockups/` folder), not just architecture diagrams.
+
 ## Active flow
 
 | Step | Phase | Posture |
 |---|---|---|
 | 1 | 1. Discovery | Validate or import — short pass |
 | 2 | 2. Requirements | PRD + story map (validated MVP slice) |
-| 3 | 3. Design | High-fidelity for the validated slice |
+| 3 | 3. Design | **Enterprise-grade mockups required** for every MVP screen; design system + a11y |
 | 4 | 4. Architecture | Full ADRs, threat model, data model |
-| 5a | 5. Build (POC) | **Actually build** in `p2c-workspace/poc/` |
+| 5a | 5. Build (POC) | **Actually build** in `p2c-workspace/poc/`, against the mockups |
 | 5b | 5. Validate POC | Test the validated job end-to-end with real data |
 | 5c | 5. Production gap | Document every gap from POC → prod |
 | 6a | 5–7. Plan prod build | Full sprint plan covering build + test + hardening + launch |
@@ -73,6 +82,7 @@ Run `python skills/p2c/scripts/estimate_cost.py --plan p2c-workspace/plan/sprint
 
 ## Stop conditions
 
+- **Pause before starting any build code** until phase 3 mockups exist and the user has approved them.
 - Confirm with the user before any code execution beyond local Node/Python project scaffolding.
 - Confirm before installing global tooling.
 - Pause after the POC works locally for the user to validate before producing the prod plan.

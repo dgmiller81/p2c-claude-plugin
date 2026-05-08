@@ -62,12 +62,20 @@ p2c-workspace/
 └── research/
 ```
 
+### Absolute rules (every command)
+
+These apply across all p2c commands:
+
+1. **Every section of every active phase must be completed** unless you explicitly skip it. There are no silent gaps.
+2. **Mockups are mandatory.** Phase 3 will not be marked complete, and build commands will not start, without high-fidelity mockups of every key screen — covering default, empty, loading, error, and success states.
+3. **Mockups must look enterprise-grade.** Real-feeling sample data, polished visuals. Match your brand if you've provided one; otherwise the orchestrator applies the Enterprise Default Style described in `references/visual-standards.md`.
+
 ### Quick start
 
 1. Run `/p2c:full` for the full journey, or pick a scoped command above for one lane.
-2. Paste a brief, link to existing docs, or just describe the idea.
+2. Paste a brief, link to existing docs, or just describe the idea. **If you have brand assets** (logo, palette, typography, brand book) share them up front — the mockups will pick them up.
 3. The orchestrator reads your inputs, does background research, and starts asking the first cluster of phase questions.
-4. Approve / push back on the deliverables as they land.
+4. Approve / push back on the deliverables as they land. Mockups in particular need explicit approval before the orchestrator will move to architecture or code.
 
 ---
 

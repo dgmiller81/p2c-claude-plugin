@@ -50,6 +50,18 @@ p2c-workspace/
 
 If a directory doesn't exist yet, create it the first time you write to it. Never overwrite a user-edited file without showing them the diff and getting explicit approval.
 
+## Absolute rules (read first, every run)
+
+These are non-negotiable. Apply them on every run, every command, every phase.
+
+1. **Every section of every active phase is completed** before the orchestrator moves on. "Section" means the deliverables listed in that phase's reference and in the active command file. The only allowed escape is an **explicit user instruction to skip**, recorded in `status.json` with the reason. There are no silent gaps.
+
+2. **Mockups are mandatory.** For any run that touches phase 3 or any UI build (`/p2c:tech-build`, the build leg of `/p2c:poc`, `/p2c:tech-prod`), high-fidelity mockups must exist for every key screen *before* the orchestrator proceeds past the design phase. The orchestrator does not start build work without mockups in place. See `references/visual-standards.md` — the rules in that file are absolute.
+
+3. **Mockups must look enterprise-grade.** Beautified, B2B-business-credible. Real-feeling sample data, real copy, working empty/loading/error/success states. Match brand if branding is provided; otherwise use the Enterprise Default Style in `references/visual-standards.md`.
+
+4. **Coverage discipline beats velocity.** It is better to pause for missing input than to ship a phase with gaps. When in doubt, surface the gap to the user and propose how to close it.
+
 ## The phase playbooks
 
 Phase content lives in `references/`. **Read the relevant phase reference at the start of each phase.** They are short, opinionated, and they tell you exactly what to ask and what to produce.
@@ -58,12 +70,14 @@ Phase content lives in `references/`. **Read the relevant phase reference at the
 |---|---|---|
 | 1. Discovery & Validation | `references/01-discovery-and-validation.md` | product-owner, business-analyst, research-marketing |
 | 2. Requirements & Scope | `references/02-requirements-and-scope.md` | product-owner, business-analyst, scrum-master |
-| 3. Design | `references/03-design.md` | product-owner, lead-developer (for handoff) |
+| 3. Design | `references/03-design.md` + `references/visual-standards.md` | product-owner, lead-developer (mockup gen + handoff) |
 | 4. Technical Architecture | `references/04-technical-architecture.md` | lead-architect, lead-developer |
 | 5. Build (MVP) | `references/05-build-mvp.md` | lead-developer, scrum-master |
 | 6. Test & Harden | `references/06-test-and-harden.md` | lead-qa-coordinator, lead-architect |
 | 7. Launch | `references/07-launch.md` | scrum-master, research-marketing, lead-qa-coordinator |
 | 8. Measure & Iterate | `references/08-measure-and-iterate.md` | product-owner, business-analyst |
+
+**Phase 3 is gated by mockup completeness.** Read `references/visual-standards.md` at the start of phase 3 (or any build phase). The gate is described in detail there.
 
 ## Slash command scopes
 
@@ -141,7 +155,15 @@ Cite what you found. Format nudges as: "I noticed <fact> from <source>. That sug
 
 ## Coverage discipline
 
-Phases 1–8 must each be either **delivered** or **explicitly skipped on user instruction**. Track this in `p2c-workspace/status.json`:
+**Every phase active in the current command must be either fully delivered or explicitly skipped on direct user instruction.** Silent omissions are a process failure. Track state in `p2c-workspace/status.json`. The orchestrator does not advance past a phase with unfulfilled deliverables unless the user has explicitly skipped each one and the skip is recorded.
+
+**Hard gates that cannot be bypassed without explicit user instruction:**
+
+- **Phase 3 → anything that needs UI** (build, POC, prod). Phase 3 may not be marked `delivered` unless mockups for every MVP screen exist. See `references/visual-standards.md`. If a build command is invoked while phase 3 is incomplete, **pause** and offer: (a) generate Enterprise Default mockups now, (b) accept user-provided design files, or (c) explicit skip with reason recorded.
+- **Phase 4 → 5.** No build start without an architecture posture (at minimum: stack ADR, data model sketch, threat model pass).
+- **Phase 6 → 7.** No launch without QA sign-off.
+
+Track all phase state in `p2c-workspace/status.json`:
 
 ```json
 {

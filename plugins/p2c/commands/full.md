@@ -28,10 +28,18 @@ The user has invoked the **full p2c flow**. Activate the `p2c` skill and run all
 5. Offer to start the visual server (`scripts/start_visual_server.py`).
 6. Begin Phase 1 with the **product-owner** + **business-analyst** + **research-marketing** agents.
 
+## Absolute rules
+
+Inherited from `SKILL.md` and `references/visual-standards.md` — apply across the whole run:
+
+1. **Every section of every phase must be completed** unless the user explicitly skips an item with a recorded reason in `status.json`. Silent gaps are a process failure.
+2. **Mockups are mandatory at phase 3.** Do not advance to phase 4 (architecture) without enterprise-grade mockups for every MVP screen on file. Match the user's brand if provided, otherwise apply the Enterprise Default Style.
+
 ## Stop conditions
 
 - After every phase, summarize deliverables, update `status.json`, and ask the user whether to proceed.
 - Do not silently cross phase boundaries.
+- **Do not advance past phase 3 without mockups.** This is a hard gate.
 - If the user pauses, ensure `status.json` reflects exactly where to resume.
 
 ## Final output
