@@ -40,15 +40,16 @@ These are inherited from `SKILL.md` and `references/visual-standards.md` — rep
 
 ## Active agents
 
-All seven, in this rough sequence:
+All eight, in this rough sequence:
 
 1. **research-marketing** + **business-analyst** + **product-owner** — discovery, market scan, PRD, BRD
 2. **product-owner** + **scrum-master** — story map, MoSCoW
-3. **lead-architect** — architecture, ADRs, threat model
-4. **lead-developer** — POC build
-5. **lead-qa-coordinator** — POC validation + prod test plan
-6. **scrum-master** — full prod sprint plan
-7. (back to **product-owner** + **scrum-master**) — final cost estimate review
+3. **lead-ux-designer** — mockups (mandatory before build), tokens, components, brand application, handoff
+4. **lead-architect** — architecture, ADRs, threat model
+5. **lead-developer** — POC build, against the mockups
+6. **lead-qa-coordinator** — POC validation + prod test plan
+7. **scrum-master** — full prod sprint plan
+8. (back to **product-owner** + **scrum-master**) — final cost estimate review
 
 ## Cost estimate must include
 

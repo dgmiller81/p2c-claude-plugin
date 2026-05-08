@@ -5,7 +5,7 @@ A Claude Code plugin that walks a product owner/manager through every phase of t
 ## What it does
 
 - Acts as **orchestrator and program manager** across 8 phases (Discovery → Measure & Iterate)
-- Spawns **7 specialized sub-agents** for each role (PO, SM, Architect, Dev, QA, BA, Research/Marketing)
+- Spawns **8 specialized sub-agents** for each role (PO, SM, Architect, UX, Dev, QA, BA, Research/Marketing)
 - Provides **visual guidance** via a local web server with interactive forms and progress dashboards
 - Researches the web, ingests existing docs/code, and makes **educated nudges**
 - Produces **specific, file-backed deliverables** for every area — nothing skipped unless explicitly told to skip
@@ -32,7 +32,8 @@ Each agent operates in its own lane with very specific outputs:
 - **product-owner** — decisions, PRD, prioritization, kill criteria
 - **scrum-master** — sprint planning, story breakdown, ceremonies, story↔component linkage
 - **lead-architect** — C4 diagrams, ADRs, threat model, stack, observability plan
-- **lead-developer** — vertical slices, code structure, CI, **POC implementation**
+- **lead-ux-designer** — **mockups (mandatory)**, wireframes, prototypes, design tokens, component library, brand application, accessibility, design handoff
+- **lead-developer** — vertical slices, code structure, CI, **POC implementation**, wiring design tokens into the codebase
 - **lead-qa-coordinator** — test plan, regression, perf, security, a11y, launch QA gate
 - **business-analyst** — BRD, requirements traceability matrix, gap analysis, compliance
 - **research-marketing** — market research, GTM, positioning, comms, growth experiments
@@ -54,6 +55,17 @@ Or, from a local clone:
 ```
 
 See [INSTALL.md](INSTALL.md) for full details, the fallback flat-command install, and the Python dependency note.
+
+### Updating
+
+To pull the latest version of the plugin from this repo:
+
+```
+/plugin marketplace update p2c-marketplace
+/plugin install p2c@p2c-marketplace
+```
+
+Or enable auto-update in `/plugin` → Marketplaces → toggle for `p2c-marketplace`.
 
 ## Cost rate card
 

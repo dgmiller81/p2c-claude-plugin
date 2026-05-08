@@ -27,8 +27,9 @@ These are inherited from `SKILL.md` and `references/visual-standards.md` — rep
 
 ## Active agents
 
+- **lead-ux-designer** (lead — owns the mockups, tokens, component library, accessibility, brand application, and the handoff brief)
 - **product-owner** — golden-path framing, copy tone, content calls
-- **lead-developer** — mockup generation when no designer is in the loop, plus build-feasibility handoff
+- **lead-developer** — only at handoff: confirms build feasibility, flags responsive/state edge cases, and is responsible for wiring the design tokens into the actual codebase later
 - **research-marketing** — only if branding/positioning needs sharpening before mockups
 
 ## Entry sequence

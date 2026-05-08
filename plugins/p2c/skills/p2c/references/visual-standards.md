@@ -98,15 +98,23 @@ If the user supplies any of the following, they take precedence over the Enterpr
 
 When branding is partial (e.g., a palette but no type system), use the brand-supplied dimension and fall back to the Enterprise Default for the rest.
 
-## Generating mockups when no designer is available
+## Mockup ownership
 
-Default behavior when the team doesn't have a designer:
+**The `lead-ux-designer` agent owns mockups.** They are dispatched as the lead in phase 3 (or before any build command starts when phase 3 is incomplete).
 
-1. Confirm with the user: "I don't see a designer in the loop. I'll generate enterprise-grade HTML mockups in `p2c-workspace/03-design/mockups/` using the Enterprise Default Style (or your brand if you've shared it). OK?"
-2. Dispatch the **lead-developer** agent (or the `frontend-design` skill if available) to produce the mockups.
-3. Each screen is a self-contained HTML file with embedded CSS — runnable via the visual server's static-asset path or by opening the file directly.
-4. Include a `mockups/index.html` that links every screen and shows the golden path.
-5. The user reviews. The orchestrator does **not** proceed to phase 4 until the user confirms the mockups are approved or has explicitly accepted partial coverage in writing.
+The UX designer:
+
+- Confirms or collects brand assets in `p2c-workspace/03-design/brand-input.md`
+- Locks the screen × state coverage matrix with the user up front
+- Produces mockups (Figma when available, HTML by default) under `p2c-workspace/03-design/mockups/`
+- Owns the design tokens, component library, accessibility checklist, and the handoff brief
+- Gets user sign-off before phase 3 closes
+
+The **lead-developer** consumes the UX designer's output (tokens + handoff brief) and wires it into the codebase. They do not create mockups.
+
+When invoking the UX designer, the orchestrator may say something like: *"I'm bringing in the **lead-ux-designer** to generate enterprise-grade HTML mockups under `p2c-workspace/03-design/mockups/` using the Enterprise Default Style (or your brand if you've shared it). The orchestrator will not proceed to phase 4 until you've reviewed and approved them."*
+
+The UX designer may use the `frontend-design` skill if it's available — it's purpose-built for this kind of work.
 
 ## How the orchestrator enforces this
 
