@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from tracelib.ids import journey_step_parent
 from tracelib.sidecar import Sidecar
@@ -16,6 +15,11 @@ class Graph:
     out: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
     inc: dict[str, set[str]] = field(default_factory=lambda: defaultdict(set))
     dangling: list[tuple[str, str]] = field(default_factory=list)
+    # Synthesized journey-step IDs that collided with an already-registered
+    # node. First definition wins the slot in `nodes`; later ones are
+    # recorded here as (duplicate_id, losing_owner_id) rather than dropped
+    # silently.
+    collisions: list[tuple[str, str]] = field(default_factory=list)
 
     def downstream(self, node_id: str) -> set[str]:
         seen: set[str] = set()
@@ -46,6 +50,7 @@ def _synthesize_journey_steps(sc: Sidecar) -> list[Sidecar]:
             "title": step.get("label", step["id"]),
             "status": sc.frontmatter.get("status", "draft"),
             "traces_to": [sc.id] + ([step["screen"]] if step.get("screen") else []),
+            "_owner": sc.id,
         }
         synthesized.append(Sidecar(path=sc.path, frontmatter=fm, body=""))
     return synthesized
@@ -61,8 +66,15 @@ def build_graph(sidecars: list[Sidecar]) -> Graph:
             expanded.extend(_synthesize_journey_steps(sc))
 
     for sc in expanded:
-        if sc.id:
-            graph.nodes.setdefault(sc.id, sc)
+        if not sc.id:
+            continue
+        if sc.id in graph.nodes:
+            if sc.type == "journey_step":
+                owner = str(sc.frontmatter.get("_owner", ""))
+                graph.collisions.append((sc.id, owner))
+            # File-backed duplicates are schema's job; not reported here.
+            continue
+        graph.nodes[sc.id] = sc
 
     for sc in expanded:
         if not sc.id:

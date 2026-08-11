@@ -76,3 +76,20 @@ def test_dangling_references_recorded():
 def test_by_type_filters():
     g = build_graph(sample())
     assert [s.id for s in g.by_type("screen")] == ["SCR-004"]
+
+
+def test_duplicate_journey_step_id_across_journeys_is_recorded():
+    nodes = [
+        sc({"id": "J-01", "type": "journey", "title": "J1",
+            "steps": [{"id": "J-01.4", "label": "Resolve", "screen": "SCR-004"}]}),
+        sc({"id": "J-02", "type": "journey", "title": "J2",
+            "steps": [{"id": "J-01.4", "label": "Duplicate", "screen": "SCR-004"}]}),
+    ]
+    g = build_graph(nodes)
+    assert g.nodes["J-01.4"].frontmatter["title"] == "Resolve"
+    assert ("J-01.4", "J-02") in g.collisions
+
+
+def test_no_collisions_recorded_for_clean_graph():
+    g = build_graph(sample())
+    assert g.collisions == []
