@@ -40,6 +40,41 @@ from tracelib.staleness import apply_status, detect
 GATE_TO_STAGE = {"gate1": "design", "gate2": "handoff", "gate3": "build"}
 
 
+def _write_validation_failure(workspace: Path, heading: str, errors: list[str]) -> None:
+    """Overwrite traceability/gaps.md with a validation-failure report.
+
+    Runs on the two exit-2 paths that happen *before* gap analysis
+    (parse errors, schema errors). Without this, a reviewer who opens
+    gaps.md instead of checking the exit code sees whatever a previous
+    successful run left behind — e.g. "No gaps found" for a workspace
+    that is currently broken. Deliberately does NOT touch rtm.md or
+    index.json: fabricating a matrix from unvalidated data would be
+    worse than leaving stale-but-honest ones in place.
+    """
+    traceability_dir = workspace / "traceability"
+    traceability_dir.mkdir(parents=True, exist_ok=True)
+
+    lines = [
+        "# Traceability gaps",
+        "",
+        f"## {heading}",
+        "",
+        "Validation failed before gap analysis could run. The requirements "
+        "matrix (rtm.md) and index (index.json) were NOT regenerated for "
+        "this run — they reflect a previous run (or nothing, if there was "
+        "none) and must not be trusted until validation passes.",
+        "",
+    ]
+    if errors:
+        lines.append("## Errors")
+        lines.append("")
+        for err in errors:
+            lines.append(f"- {err}")
+        lines.append("")
+
+    (traceability_dir / "gaps.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def resolve_stage(workspace: Path, requested: str | None) -> str:
     if requested:
         return requested
@@ -53,9 +88,22 @@ def resolve_stage(workspace: Path, requested: str | None) -> str:
     except json.JSONDecodeError:
         return "requirements"
 
+    # A syntactically valid JSON document need not be an object — `[]`,
+    # `42`, `null`, `"x"` all parse cleanly but have no `.get()`. Treat any
+    # of those exactly like a malformed config rather than letting
+    # `.get("gates")` raise and take the whole gate down with a traceback.
+    if not isinstance(config, dict):
+        return "requirements"
+
+    gates = config.get("gates")
+    if not isinstance(gates, dict):
+        gates = {}
+
     stage = "requirements"
     for gate, mapped in GATE_TO_STAGE.items():
-        gate_state = (config.get("gates") or {}).get(gate) or {}
+        gate_state = gates.get(gate)
+        if not isinstance(gate_state, dict):
+            gate_state = {}
         if gate_state.get("status") == "signed":
             if STAGES.index(mapped) > STAGES.index(stage):
                 stage = mapped
@@ -85,16 +133,20 @@ def main(argv: list[str] | None = None) -> int:
         sidecars = load_workspace(workspace)
     except SidecarError as exc:
         print(f"error: {exc}", file=sys.stderr)
+        _write_validation_failure(workspace, "Parse error", [str(exc)])
         return 2
 
     schema_errors = validate_all(sidecars)
     if schema_errors:
+        messages = []
         for err in schema_errors:
-            print(
+            message = (
                 f"schema error: {err.subject} [{err.field_name}] {err.message} "
-                f"({err.path})",
-                file=sys.stderr,
+                f"({err.path})"
             )
+            print(message, file=sys.stderr)
+            messages.append(message)
+        _write_validation_failure(workspace, "Schema errors", messages)
         return 2
 
     stage = resolve_stage(workspace, args.stage)

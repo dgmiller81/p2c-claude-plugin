@@ -137,6 +137,27 @@ def test_index_and_gaps_agree_on_ordering(tmp_path, fixtures_root):
     assert index_order == sorted(index_order)
 
 
+def test_gaps_md_shows_recorded_and_current_hash(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "stale-hash"))
+    stale = [
+        StaleEntry(
+            "SCR-004",
+            "upstream-changed",
+            ["FR-012"],
+            signoff_voided=True,
+            current_hashes={"FR-012": "957e03"},
+        )
+    ]
+
+    write_all(graph, [], stale, tmp_path)
+    text = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+
+    # "aaaaaa" is the recorded value in the stale-hash fixture's SCR-004
+    # source_hash; "957e03" is the current value supplied by the entry.
+    assert "aaaaaa" in text
+    assert "957e03" in text
+
+
 def test_pipe_in_gap_message_does_not_break_the_table(tmp_path, fixtures_root):
     graph = build_graph(load_workspace(fixtures_root / "clean"))
     gaps = [Gap("dangling-reference", "FR-099", "target a | b not found")]

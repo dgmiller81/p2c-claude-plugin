@@ -11,20 +11,28 @@ from tracelib.hashing import normative_hash
 
 def detect(graph: Graph) -> list[StaleEntry]:
     direct: dict[str, list[str]] = {}
+    # Upstream ID -> freshly computed hash, per node with a direct mismatch.
+    # Populated alongside `direct` so the repairer-facing report can show
+    # what the correct source_hash value now is, not just that it's wrong.
+    direct_current_hashes: dict[str, dict[str, str]] = {}
 
     for node_id, sc in graph.nodes.items():
         recorded = sc.frontmatter.get("source_hash") or {}
         if not isinstance(recorded, dict):
             continue
         changed: list[str] = []
+        current_for_node: dict[str, str] = {}
         for upstream_id, expected in recorded.items():
             upstream = graph.nodes.get(str(upstream_id))
             if upstream is None:
                 continue
-            if normative_hash(upstream) != str(expected):
+            current_hash = normative_hash(upstream)
+            if current_hash != str(expected):
                 changed.append(str(upstream_id))
+                current_for_node[str(upstream_id)] = current_hash
         if changed:
             direct[node_id] = sorted(changed)
+            direct_current_hashes[node_id] = current_for_node
 
     entries: list[StaleEntry] = []
     seen: set[str] = set()
@@ -36,6 +44,7 @@ def detect(graph: Graph) -> list[StaleEntry]:
                 reason="upstream-changed",
                 changed_upstream=direct[node_id],
                 signoff_voided=bool(graph.nodes[node_id].frontmatter.get("signoff")),
+                current_hashes=direct_current_hashes.get(node_id, {}),
             )
         )
         seen.add(node_id)

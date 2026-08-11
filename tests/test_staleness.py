@@ -66,6 +66,15 @@ def test_yaml_parses_padded_hash_as_string_when_quoted():
     assert yaml.safe_load("h: '000000'")["h"] == "000000"
 
 
+def test_stale_entry_carries_current_hash(fixtures_root):
+    from tracelib.hashing import normative_hash
+
+    graph, _ = graph_for(fixtures_root, "stale-hash")
+    entries = detect(graph)
+    direct = next(e for e in entries if e.subject == "SCR-004")
+    assert direct.current_hashes["FR-012"] == normative_hash(graph.nodes["FR-012"])
+
+
 def test_apply_status_writes_stale_and_strips_signoff(tmp_path, fixtures_root):
     import shutil
 

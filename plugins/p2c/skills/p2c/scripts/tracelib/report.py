@@ -163,7 +163,44 @@ def write_index(
     )
 
 
-def write_gaps(gaps: list[Gap], stale: list[StaleEntry], out_path: Path) -> None:
+def _hash_transition_cell(graph: Graph | None, entry: StaleEntry) -> str:
+    """Render "<id>: <recorded> -> <current>" for each changed upstream.
+
+    "Recorded" is the value currently sitting in the stale artifact's own
+    `source_hash` frontmatter (the value that no longer matches); "current"
+    is `entry.current_hashes[id]`, the freshly computed hash a repairer
+    should write instead. Renders "—" when there's nothing to show, which
+    is always the case for "transitive" entries — their `current_hashes`
+    is intentionally left empty since repair follows from the direct entry.
+    """
+    if graph is None or not entry.current_hashes:
+        return "—"
+
+    subject_node = graph.nodes.get(entry.subject)
+    recorded_map: dict = {}
+    if subject_node is not None:
+        raw = subject_node.frontmatter.get("source_hash") or {}
+        if isinstance(raw, dict):
+            recorded_map = raw
+
+    parts = []
+    for upstream_id in entry.changed_upstream:
+        current = entry.current_hashes.get(upstream_id)
+        if current is None:
+            continue
+        recorded = recorded_map.get(upstream_id, "?")
+        parts.append(f"{upstream_id}: {recorded} → {current}")
+
+    return ", ".join(parts) if parts else "—"
+
+
+def write_gaps(
+    gaps: list[Gap],
+    stale: list[StaleEntry],
+    out_path: Path,
+    *,
+    graph: Graph | None = None,
+) -> None:
     lines = ["# Traceability gaps", ""]
 
     if not gaps:
@@ -182,14 +219,15 @@ def write_gaps(gaps: list[Gap], stale: list[StaleEntry], out_path: Path) -> None
         lines += [
             "## Staleness",
             "",
-            "| Artifact | Reason | Changed upstream | Sign-off |",
-            "|---|---|---|---|",
+            "| Artifact | Reason | Changed upstream | Recorded → current | Sign-off |",
+            "|---|---|---|---|---|",
         ]
         for entry in sorted(stale, key=lambda e: e.subject):
             signoff = "sign-off voided" if entry.signoff_voided else "—"
             lines.append(
                 f"| {_cell(entry.subject)} | {_cell(entry.reason)} | "
-                f"{_cell(', '.join(entry.changed_upstream) or '—')} | {_cell(signoff)} |"
+                f"{_cell(', '.join(entry.changed_upstream) or '—')} | "
+                f"{_cell(_hash_transition_cell(graph, entry))} | {_cell(signoff)} |"
             )
         lines.append("")
 
@@ -211,5 +249,5 @@ def write_all(
 
     write_rtm(graph, gaps, stale, rtm)
     write_index(graph, gaps, stale, index, root=root)
-    write_gaps(gaps, stale, gaps_path)
+    write_gaps(gaps, stale, gaps_path, graph=graph)
     return [rtm, index, gaps_path]

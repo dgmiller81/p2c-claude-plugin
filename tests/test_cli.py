@@ -113,3 +113,43 @@ def test_index_json_uses_relative_posix_paths(workspace):
     assert paths, "expected at least one node"
     assert all("\\" not in p for p in paths)
     assert "02-requirements/register/FR-012.md" in paths
+
+
+@pytest.mark.parametrize("raw", ["[]", "42", "null", '"x"'])
+def test_non_object_config_does_not_crash(workspace, raw):
+    ws = workspace("clean")
+    (ws / "config.json").write_text(raw, encoding="utf-8")
+    assert trace_cli.resolve_stage(ws, None) == "requirements"
+    code = trace_cli.main(["--workspace", str(ws)])
+    assert code in {0, 1, 2}
+
+
+def test_non_dict_gates_does_not_crash(workspace):
+    ws = workspace("clean")
+    (ws / "config.json").write_text(
+        json.dumps({"gates": []}), encoding="utf-8"
+    )
+    assert trace_cli.resolve_stage(ws, None) == "requirements"
+
+
+def test_schema_error_overwrites_gaps_report(workspace):
+    ws = workspace("clean")
+    code1 = trace_cli.main(["--workspace", str(ws), "--stage", "design"])
+    assert code1 == 0
+    gaps_before = (ws / "traceability" / "gaps.md").read_text(encoding="utf-8")
+    assert "No gaps found" in gaps_before
+
+    fr012 = ws / "02-requirements" / "register" / "FR-012.md"
+    fr012.write_text(
+        fr012.read_text(encoding="utf-8").replace(
+            "title: Dispatcher resolves a shipment exception\n", ""
+        ),
+        encoding="utf-8",
+    )
+
+    code2 = trace_cli.main(["--workspace", str(ws), "--stage", "design"])
+    assert code2 == 2
+
+    gaps_after = (ws / "traceability" / "gaps.md").read_text(encoding="utf-8")
+    assert "No gaps found" not in gaps_after
+    assert "title" in gaps_after
