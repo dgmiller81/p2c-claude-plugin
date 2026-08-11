@@ -20,6 +20,12 @@ class Graph:
     # recorded here as (duplicate_id, losing_owner_id) rather than dropped
     # silently.
     collisions: list[tuple[str, str]] = field(default_factory=list)
+    # Journey steps that could not be synthesized into a node, as
+    # (journey_id, 1-based position). A step with no `id`, or one that is
+    # not a mapping at all, has no identity to hang a node on — but
+    # dropping it silently means a step of the journey exists in the
+    # author's head and in no check.
+    malformed_steps: list[tuple[str, int]] = field(default_factory=list)
 
     def downstream(self, node_id: str) -> set[str]:
         seen: set[str] = set()
@@ -38,22 +44,43 @@ class Graph:
         ]
 
 
-def _synthesize_journey_steps(sc: Sidecar) -> list[Sidecar]:
+def _synthesize_journey_steps(sc: Sidecar) -> tuple[list[Sidecar], list[int]]:
+    """Mint one node per journey step.
+
+    Returns the synthesized nodes and the 1-based positions of steps that
+    could not be synthesized (not a mapping, or no `id`). Callers must
+    surface those positions: a step with no identity is still a step the
+    author declared, and dropping it silently removes it from every check.
+
+    Note the synthesized node carries the OWNING JOURNEY's path and an
+    empty body. It has no file of its own, so nothing may write to it —
+    see staleness._is_synthesized.
+    """
     steps = sc.frontmatter.get("steps") or []
+    if isinstance(steps, dict) or not isinstance(steps, (list, tuple)):
+        steps = [steps]
+
     synthesized: list[Sidecar] = []
-    for step in steps:
+    malformed: list[int] = []
+    for position, step in enumerate(steps, start=1):
         if not isinstance(step, dict) or not step.get("id"):
+            malformed.append(position)
             continue
+        screen = step.get("screen")
         fm = {
             "id": step["id"],
             "type": "journey_step",
             "title": step.get("label", step["id"]),
             "status": sc.frontmatter.get("status", "draft"),
-            "traces_to": [sc.id] + ([step["screen"]] if step.get("screen") else []),
+            "traces_to": [sc.id] + ([screen] if screen else []),
+            # Recorded so stages can ask "does this step declare a screen?"
+            # without reparsing the journey. Not a LINK_FIELD: the edge is
+            # already carried by traces_to.
+            "screen": screen,
             "_owner": sc.id,
         }
         synthesized.append(Sidecar(path=sc.path, frontmatter=fm, body=""))
-    return synthesized
+    return synthesized, malformed
 
 
 def build_graph(sidecars: list[Sidecar]) -> Graph:
@@ -63,7 +90,9 @@ def build_graph(sidecars: list[Sidecar]) -> Graph:
     for sc in sidecars:
         expanded.append(sc)
         if sc.type == "journey":
-            expanded.extend(_synthesize_journey_steps(sc))
+            steps, malformed = _synthesize_journey_steps(sc)
+            expanded.extend(steps)
+            graph.malformed_steps.extend((sc.id, pos) for pos in malformed)
 
     for sc in expanded:
         if not sc.id:

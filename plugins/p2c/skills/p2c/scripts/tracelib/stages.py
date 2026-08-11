@@ -51,6 +51,17 @@ def _check_requirements_stage(graph: Graph) -> list[Gap]:
             )
         )
 
+    for journey_id, position in graph.malformed_steps:
+        gaps.append(
+            Gap(
+                "malformed-step",
+                journey_id,
+                f"step #{position} has no usable 'id', so it exists in no "
+                "graph node and no check can see it; give it an id of the "
+                f"form {journey_id}.<n>",
+            )
+        )
+
     for req in _requirements(graph):
         if req.frontmatter.get("kind") != "business":
             continue
@@ -146,6 +157,22 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
                         f"declared state '{state_name}' file '{filename_str}' not found",
                     )
                 )
+
+    # The spec's functional+ui chain lists "journey step has no screen" as
+    # an explicit failure condition. The journey-level orphan check below
+    # asks only whether SOME step is used by SOME screen, so it cannot see
+    # a journey whose other steps lead nowhere. Both checks are kept: they
+    # catch different things.
+    for step in sorted(graph.by_type("journey_step"), key=lambda s: s.id):
+        if not step.frontmatter.get("screen"):
+            gaps.append(
+                Gap(
+                    "broken-chain",
+                    step.id,
+                    "journey step declares no screen, so the persona has "
+                    "nowhere to perform it",
+                )
+            )
 
     for persona in graph.by_type("persona"):
         if not graph.inc.get(persona.id):

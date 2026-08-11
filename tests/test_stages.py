@@ -293,6 +293,98 @@ def test_parent_traversal_state_path_is_rejected(tmp_path):
     assert any(g.kind == "missing-state" and g.subject == "SCR-004" for g in gaps)
 
 
+def test_journey_step_without_a_screen_is_flagged(tmp_path):
+    # The design spec lists "journey step has no screen" as an explicit
+    # failure condition of the functional+ui chain. The journey-level check
+    # only asks whether SOME step is referenced by SOME screen, so a journey
+    # whose remaining steps declare no screen at all sails through.
+    persona = Sidecar(
+        path=tmp_path / "P-02.md",
+        frontmatter={"id": "P-02", "type": "persona", "title": "P"},
+        body="",
+    )
+    journey = Sidecar(
+        path=tmp_path / "J-01.md",
+        frontmatter={
+            "id": "J-01",
+            "type": "journey",
+            "title": "J",
+            "persona": "P-02",
+            "steps": [
+                {"id": "J-01.4", "label": "Open the queue", "screen": "SCR-004"},
+                {"id": "J-01.5", "label": "Assign it"},
+                {"id": "J-01.6", "label": "Record a reason"},
+            ],
+        },
+        body="",
+    )
+    screen = Sidecar(
+        path=tmp_path / "SCR-004.md",
+        frontmatter={
+            "id": "SCR-004",
+            "type": "screen",
+            "title": "S",
+            "traces_to": [],
+            "personas": ["P-02"],
+            "journey_steps": ["J-01.4"],
+            "states": {},
+        },
+        body="",
+    )
+    graph = build_graph([persona, journey, screen])
+    gaps = check(graph, "design", tmp_path)
+
+    flagged = {g.subject for g in gaps if g.kind == "broken-chain"}
+    assert {"J-01.5", "J-01.6"} <= flagged
+    # J-01.4 declares screen: SCR-004, so it must NOT be flagged -- this is
+    # not a check that fires on every step.
+    assert "J-01.4" not in flagged
+
+
+def test_journey_step_without_a_screen_not_flagged_at_requirements_stage(tmp_path):
+    journey = Sidecar(
+        path=tmp_path / "J-01.md",
+        frontmatter={
+            "id": "J-01",
+            "type": "journey",
+            "title": "J",
+            "persona": "P-02",
+            "steps": [{"id": "J-01.5", "label": "Assign it"}],
+        },
+        body="",
+    )
+    gaps = check(build_graph([journey]), "requirements", tmp_path)
+    assert all(g.subject != "J-01.5" for g in gaps)
+
+
+def test_journey_step_without_an_id_is_flagged(tmp_path):
+    # graph._synthesize_journey_steps used to `continue` past any step dict
+    # with no `id`, so the step vanished from the graph entirely and no
+    # check could ever see it.
+    journey = Sidecar(
+        path=tmp_path / "J-01.md",
+        frontmatter={
+            "id": "J-01",
+            "type": "journey",
+            "title": "J",
+            "persona": "P-02",
+            "steps": [
+                {"id": "J-01.4", "label": "Open the queue", "screen": "SCR-004"},
+                {"label": "Forgot the id", "screen": "SCR-004"},
+                "not even a mapping",
+            ],
+        },
+        body="",
+    )
+    gaps = check(build_graph([journey]), "requirements", tmp_path)
+    malformed = [g for g in gaps if g.kind == "malformed-step"]
+    assert len(malformed) == 2
+    assert all(g.subject == "J-01" for g in malformed)
+    # The message must locate the offending step for the author.
+    assert any("2" in g.message for g in malformed)
+    assert any("3" in g.message for g in malformed)
+
+
 def test_journey_with_no_screen_referencing_its_steps_is_orphaned(tmp_path, fixtures_root):
     # J-01's own synthesized step always creates an inbound edge onto J-01
     # (step --traces_to--> journey), so the old "does anything point at
