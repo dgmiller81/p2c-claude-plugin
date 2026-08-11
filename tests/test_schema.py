@@ -6,8 +6,8 @@ from tracelib.schema import validate, validate_all
 from tracelib.sidecar import Sidecar
 
 
-def make(fm: dict, body: str = "body") -> Sidecar:
-    return Sidecar(path=Path("x.md"), frontmatter=fm, body=body)
+def make(fm: dict, body: str = "body", path: Path = Path("x.md")) -> Sidecar:
+    return Sidecar(path=path, frontmatter=fm, body=body)
 
 
 VALID_REQ = {
@@ -70,3 +70,39 @@ def test_validate_all_flags_duplicate_ids():
     b = make(dict(VALID_REQ))
     errors = validate_all([a, b])
     assert any("duplicate" in e.message.lower() for e in errors)
+
+
+def test_screen_with_empty_traces_to_passes_schema():
+    fm = {
+        "id": "SCR-004",
+        "type": "screen",
+        "title": "Queue",
+        "status": "draft",
+        "traces_to": [],
+        "states": {"default": "SCR-004.html"},
+    }
+    assert validate(make(fm)) == []
+
+
+def test_screen_missing_traces_to_key_is_an_error():
+    fm = {
+        "id": "SCR-004",
+        "type": "screen",
+        "title": "Queue",
+        "status": "draft",
+        "states": {"default": "SCR-004.html"},
+    }
+    assert any(e.field_name == "traces_to" for e in validate(make(fm)))
+
+
+def test_empty_title_is_an_error():
+    fm = dict(VALID_REQ, title="")
+    assert any(e.field_name == "title" for e in validate(make(fm)))
+
+
+def test_duplicate_id_error_names_every_offending_path():
+    a = make(VALID_REQ, path=Path("a.md"))
+    b = make(dict(VALID_REQ), path=Path("b.md"))
+    errors = validate_all([a, b])
+    paths = {e.path.name for e in errors}
+    assert {"a.md", "b.md"} <= paths
