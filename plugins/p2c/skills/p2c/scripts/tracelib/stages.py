@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tracelib.errors import Gap
 from tracelib.graph import Graph
+from tracelib.hashing import normative_hash
 from tracelib.ids import journey_step_parent
 
 STAGES: tuple[str, ...] = ("requirements", "design", "handoff", "build")
@@ -167,6 +168,51 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
     return gaps
 
 
+def _check_unhashed_links(graph: Graph) -> list[Gap]:
+    """Every traced-to requirement must be covered by the tracer's source_hash.
+
+    Staleness detection (tracelib.staleness.detect) iterates only what is
+    RECORDED in `source_hash`. An empty or absent map therefore means no
+    staleness detection at all — permanently, and silently. That turns the
+    spec's central promise ("changing what a requirement demands invalidates
+    downstream work") into an opt-in an author gets wrong by omission.
+
+    Only requirement targets are checked: they are the artifacts whose
+    normative text downstream work is a response to. Dangling targets are
+    skipped — they are already reported as `dangling-ref`, and there is no
+    node to hash.
+    """
+    gaps: list[Gap] = []
+    for node_id, sc in sorted(graph.nodes.items()):
+        targets = sc.frontmatter.get("traces_to") or []
+        if isinstance(targets, str):
+            targets = [targets]
+        if not isinstance(targets, (list, tuple, set)):
+            continue
+
+        recorded = sc.frontmatter.get("source_hash") or {}
+        if not isinstance(recorded, dict):
+            # schema.validate already rejects a non-mapping source_hash;
+            # treat it as recording nothing rather than crashing here.
+            recorded = {}
+
+        for target in sorted(str(t) for t in targets):
+            upstream = graph.nodes.get(target)
+            if upstream is None or upstream.type != "requirement":
+                continue
+            if target in recorded:
+                continue
+            gaps.append(
+                Gap(
+                    "unhashed-link",
+                    node_id,
+                    f"traces to {target} but records no source_hash for it; "
+                    f"current hash is {normative_hash(upstream)}",
+                )
+            )
+    return gaps
+
+
 def _check_handoff_stage(graph: Graph) -> list[Gap]:
     gaps: list[Gap] = []
     for req in _requirements(graph):
@@ -200,6 +246,7 @@ def check(graph: Graph, stage: str, workspace_root: Path) -> list[Gap]:
     gaps = _check_requirements_stage(graph)
     if index >= STAGES.index("design"):
         gaps.extend(_check_design_stage(graph, workspace_root))
+        gaps.extend(_check_unhashed_links(graph))
     if index >= STAGES.index("handoff"):
         gaps.extend(_check_handoff_stage(graph))
     if index >= STAGES.index("build"):

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
 from tracelib.graph import build_graph
+from tracelib.hashing import normative_hash
 from tracelib.sidecar import Sidecar, load_workspace
 from tracelib.stages import check
 
@@ -66,6 +69,105 @@ def test_build_stage_requires_a_story(fixtures_root):
     gaps = gaps_for(fixtures_root, "clean", "build")
     assert any(g.kind == "broken-chain" and g.subject == "FR-012"
                for g in gaps)
+
+
+def test_screen_without_source_hash_for_its_requirement_is_flagged(tmp_path):
+    # Staleness detection iterates only what is RECORDED in source_hash, so
+    # an artifact that records nothing is permanently immune to it. Without
+    # this check, changing what a requirement demands silently leaves every
+    # downstream artifact reporting `ok`.
+    req = Sidecar(
+        path=tmp_path / "FR-012.md",
+        frontmatter={
+            "id": "FR-012",
+            "type": "requirement",
+            "kind": "functional",
+            "surface": "ui",
+            "title": "R",
+            "statement": "A dispatcher can view and resolve unresolved exceptions.",
+            "acceptance_criteria": ["Assignment removes it from the queue."],
+        },
+        body="",
+    )
+    screen = Sidecar(
+        path=tmp_path / "SCR-004.md",
+        frontmatter={
+            "id": "SCR-004",
+            "type": "screen",
+            "title": "S",
+            "traces_to": ["FR-012"],
+            "personas": ["P-02"],
+            "journey_steps": ["J-01.4"],
+            "states": {},
+            "source_hash": {},
+        },
+        body="",
+    )
+    graph = build_graph([req, screen])
+    gaps = check(graph, "design", tmp_path)
+
+    flagged = [g for g in gaps if g.kind == "unhashed-link"]
+    assert flagged, "a screen recording no source_hash must be flagged"
+    assert flagged[0].subject == "SCR-004"
+    assert "FR-012" in flagged[0].message
+    # The message must be actionable: it carries the CURRENT hash so the
+    # author can paste it straight into source_hash.
+    assert normative_hash(req) in flagged[0].message
+
+
+def test_unhashed_link_not_checked_at_requirements_stage(tmp_path):
+    # Screens do not exist at the requirements stage, so the check would be
+    # meaningless there.
+    screen = Sidecar(
+        path=tmp_path / "SCR-004.md",
+        frontmatter={
+            "id": "SCR-004",
+            "type": "screen",
+            "title": "S",
+            "traces_to": ["FR-012"],
+            "states": {},
+        },
+        body="",
+    )
+    req = Sidecar(
+        path=tmp_path / "FR-012.md",
+        frontmatter={"id": "FR-012", "type": "requirement", "title": "R"},
+        body="",
+    )
+    graph = build_graph([req, screen])
+    gaps = check(graph, "requirements", tmp_path)
+    assert all(g.kind != "unhashed-link" for g in gaps)
+
+
+def test_recorded_source_hash_satisfies_the_link(tmp_path):
+    req = Sidecar(
+        path=tmp_path / "FR-012.md",
+        frontmatter={
+            "id": "FR-012",
+            "type": "requirement",
+            "title": "R",
+            "statement": "A dispatcher resolves an exception.",
+            "acceptance_criteria": ["It leaves the queue."],
+        },
+        body="",
+    )
+    component = Sidecar(
+        path=tmp_path / "ARC-002.md",
+        frontmatter={
+            "id": "ARC-002",
+            "type": "component",
+            "title": "C",
+            "traces_to": ["FR-012"],
+            # Deliberately WRONG value: recording *a* hash is what the
+            # unhashed-link check demands. Whether it still matches is
+            # staleness's job, not this check's.
+            "source_hash": {"FR-012": "aaaaaa"},
+        },
+        body="",
+    )
+    graph = build_graph([req, component])
+    gaps = check(graph, "design", tmp_path)
+    assert all(g.kind != "unhashed-link" for g in gaps)
 
 
 def test_duplicate_journey_step_reported_at_requirements_stage(tmp_path):

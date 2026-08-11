@@ -30,6 +30,44 @@ def test_clean_workspace_writes_reports(workspace):
         assert (ws / "traceability" / name).is_file()
 
 
+def test_clean_workspace_exits_zero_at_handoff(workspace):
+    # The fixtures now record a source_hash for every requirement they trace
+    # to, so the new unhashed-link check must not fire on them.
+    ws = workspace("clean")
+    assert trace_cli.main(["--workspace", str(ws), "--stage", "handoff"]) == 0
+
+
+def test_rewriting_a_requirement_statement_fails_the_gate(workspace):
+    # Regression: with source_hash unrecorded, gutting FR-012 used to exit 0
+    # with "0 stale artifact(s)" and rtm.md reporting `ok` -- a false PASS
+    # that lets an unimplemented requirement reach engineering.
+    ws = workspace("clean")
+    fr012 = ws / "02-requirements" / "register" / "FR-012.md"
+    fr012.write_text(
+        fr012.read_text(encoding="utf-8").replace(
+            "statement: A dispatcher can view and resolve unresolved exceptions.",
+            "statement: The system prints the annual tax ledger in triplicate.",
+        ),
+        encoding="utf-8",
+    )
+    assert trace_cli.main(["--workspace", str(ws), "--stage", "handoff"]) == 1
+
+
+def test_screen_recording_no_source_hash_fails_the_gate(workspace):
+    ws = workspace("clean")
+    screen = ws / "03-design" / "mockups" / "SCR-004.md"
+    screen.write_text(
+        screen.read_text(encoding="utf-8").replace(
+            "source_hash: {FR-012: '1076e4'}", "source_hash: {}"
+        ),
+        encoding="utf-8",
+    )
+    assert trace_cli.main(["--workspace", str(ws), "--stage", "design"]) == 1
+    gaps = (ws / "traceability" / "gaps.md").read_text(encoding="utf-8")
+    assert "unhashed-link" in gaps
+    assert "1076e4" in gaps
+
+
 def test_orphan_requirement_exits_one(workspace):
     ws = workspace("orphan-requirement")
     assert trace_cli.main(["--workspace", str(ws), "--stage", "design"]) == 1
