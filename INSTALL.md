@@ -17,6 +17,54 @@ p2c-skill/
         └── skills/p2c/           ← SKILL.md + references/ + scripts/ + assets/ + templates/
 ```
 
+## Quick install (script — asks where to install)
+
+The installer prompts for scope, downloads this repo, and copies the skill, agents,
+and commands into the right place.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dgmiller81/p2c-claude-plugin/main/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/dgmiller81/p2c-claude-plugin/main/install.ps1 | iex
+```
+
+You get two choices:
+
+| Choice | Installs to | Use when |
+|---|---|---|
+| **This user** | `~/.claude` | You want p2c in every project you open |
+| **One project** | `<project>/.claude` | You want it scoped to one repo — commit `.claude/` and your team gets it too |
+
+Non-interactive:
+
+```bash
+curl -fsSL .../install.sh | bash -s -- --user
+curl -fsSL .../install.sh | bash -s -- --project /path/to/repo
+curl -fsSL .../install.sh | bash -s -- --user --uninstall
+```
+
+```powershell
+# PowerShell needs the file on disk to take arguments
+irm https://raw.githubusercontent.com/dgmiller81/p2c-claude-plugin/main/install.ps1 -OutFile install.ps1
+./install.ps1 -Scope User
+./install.ps1 -Scope Project -ProjectDir C:\src\myrepo
+./install.ps1 -Scope User -Uninstall
+```
+
+Other flags: `--yes` / `-Yes` to skip confirmations, `--ref BRANCH` / `-Ref BRANCH` to
+install from a branch or tag other than `main`, `--help` for the full list.
+
+**What the script installs:** the flat-command layout — `/p2c-full`, `/p2c-help`, and so
+on. It does **not** register a marketplace, because `/plugin` commands only run inside
+Claude Code. If you want `:` namespacing (`/p2c:full`), use the plugin install below
+instead; the script prints those commands when it finishes.
+
+The script is safe to re-run — it asks before overwriting an existing install, and
+`--uninstall` removes exactly what it wrote (the `p2c` skill, the eight agents, and the
+`p2c-*` commands) and nothing else.
+
 ## Install (recommended — gives `:` namespacing)
 
 In Claude Code, install from GitHub:

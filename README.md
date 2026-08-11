@@ -40,6 +40,24 @@ Each agent operates in its own lane with very specific outputs:
 
 ## Installation
 
+### One-liner (asks where to install)
+
+Run the installer and it prompts for **this user** (`~/.claude`) or **one project**
+(`<project>/.claude`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dgmiller81/p2c-claude-plugin/main/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/dgmiller81/p2c-claude-plugin/main/install.ps1 | iex
+```
+
+Skip the prompt with `--user` or `--project DIR` (`-Scope User` / `-Scope Project` on
+Windows). This gives flat commands — `/p2c-full`, `/p2c-help`, and so on.
+
+### As a plugin (gives `:` namespacing)
+
 In Claude Code, install directly from this repo:
 
 ```
