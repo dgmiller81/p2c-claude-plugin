@@ -62,6 +62,37 @@ def _presence_errors(
     return errors
 
 
+def _states_errors(
+    fm: dict[str, Any], path: Path, subject: str
+) -> list[SchemaError]:
+    """`states` must be a mapping of state name to file.
+
+    A sequence such as `states: [SCR-004.html]` is present and non-empty, so
+    the presence check passes it — and then stages._check_design_stage does
+    `sorted(states.items())` and raises AttributeError. That traceback exits
+    1, which is indistinguishable from "gaps found", and it dies before
+    write_all runs, so a previous run's gaps.md ("No gaps found") survives
+    as the report for a workspace that never finished checking.
+    """
+    if "states" not in fm:
+        return []
+
+    value = fm.get("states")
+    if value is None or isinstance(value, dict):
+        return []
+
+    return [
+        SchemaError(
+            path,
+            subject,
+            "states",
+            "'states' must be a mapping of state name to file "
+            "(e.g. {default: SCR-004.html}), got "
+            f"{type(value).__name__}",
+        )
+    ]
+
+
 def _source_hash_errors(
     fm: dict[str, Any], path: Path, subject: str
 ) -> list[SchemaError]:
@@ -168,6 +199,7 @@ def validate(sc: Sidecar) -> list[SchemaError]:
                 )
             )
 
+    errors.extend(_states_errors(fm, sc.path, subject))
     errors.extend(_source_hash_errors(fm, sc.path, subject))
 
     return errors

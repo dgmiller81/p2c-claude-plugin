@@ -142,6 +142,27 @@ def test_uppercase_source_hash_is_rejected():
     assert any(e.field_name == "source_hash" for e in errors)
 
 
+def test_non_mapping_states_is_a_schema_error():
+    # `states: [SCR-004.html]` is present and non-empty, so the presence
+    # check passes it -- and then stages._check_design_stage does
+    # `sorted(states.items())` and raises AttributeError. The traceback
+    # exits 1, indistinguishable from "gaps found", and dies before
+    # write_all, leaving a previous run's "No gaps found" gaps.md in place.
+    fm = dict(VALID_SCREEN, states=["SCR-004.html"])
+    errors = validate(make(fm))
+    assert any(e.field_name == "states" for e in errors)
+    assert any("mapping" in e.message.lower() for e in errors if e.field_name == "states")
+
+
+def test_non_mapping_states_does_not_crash_the_design_stage():
+    from tracelib.graph import build_graph
+    from tracelib.stages import check
+
+    sc = make(dict(VALID_SCREEN, states=["SCR-004.html"]))
+    # Must return gaps rather than raising AttributeError.
+    check(build_graph([sc]), "design", Path("."))
+
+
 def test_valid_source_hash_passes():
     fm = dict(VALID_SCREEN, source_hash={"FR-012": "a3f9c1"})
     assert validate(make(fm)) == []

@@ -107,6 +107,19 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
             )
 
         states = fm.get("states") or {}
+        if not isinstance(states, dict):
+            # schema.validate rejects this and the CLI exits 2 before ever
+            # reaching here; the guard keeps a direct library caller from
+            # getting an AttributeError instead of a gap list.
+            gaps.append(
+                Gap(
+                    "missing-state",
+                    screen.id,
+                    "'states' is not a mapping of state name to file, so no "
+                    "state could be checked",
+                )
+            )
+            continue
         for state_name, filename in sorted(states.items()):
             filename_str = str(filename)
             candidate = Path(filename_str)
