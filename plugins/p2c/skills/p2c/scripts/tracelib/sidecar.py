@@ -36,12 +36,12 @@ def parse_sidecar(path: Path) -> Sidecar:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
 
-    if not lines or lines[0].strip() != DELIMITER:
+    if not lines or lines[0].rstrip() != DELIMITER:
         raise SidecarError(path, "missing YAML frontmatter opening delimiter")
 
     try:
         end = next(
-            i for i in range(1, len(lines)) if lines[i].strip() == DELIMITER
+            i for i in range(1, len(lines)) if lines[i].rstrip() == DELIMITER
         )
     except StopIteration:
         raise SidecarError(path, "unterminated YAML frontmatter") from None

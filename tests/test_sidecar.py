@@ -52,6 +52,30 @@ def test_parse_sidecar_rejects_malformed_yaml(tmp_path):
         parse_sidecar(path)
 
 
+def test_indented_delimiter_inside_block_scalar_does_not_truncate(tmp_path):
+    path = tmp_path / "FR-012.md"
+    path.write_text(
+        "---\n"
+        "id: FR-012\n"
+        "type: requirement\n"
+        "title: Example\n"
+        "statement: >\n"
+        "  First line.\n"
+        "  ---\n"
+        "  Second line.\n"
+        "status: draft\n"
+        "---\n"
+        "\n"
+        "Body.\n",
+        encoding="utf-8",
+    )
+
+    sc = parse_sidecar(path)
+
+    assert sc.frontmatter["status"] == "draft"
+    assert "Second line." in sc.frontmatter["statement"]
+
+
 def test_load_workspace_finds_nested_sidecars_and_skips_generated(tmp_path):
     (tmp_path / "02-requirements" / "register").mkdir(parents=True)
     (tmp_path / "02-requirements" / "register" / "FR-012.md").write_text(
