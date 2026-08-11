@@ -14,9 +14,9 @@ PREFIX_TO_TYPE: dict[str, str] = {
     "TC": "test",
 }
 
-_THREE_DIGIT = re.compile(r"^(BR|FR|NFR|SCR|ARC|US|TC)-\d{3}$")
-_TWO_DIGIT = re.compile(r"^(P|J)-\d{2}$")
-_JOURNEY_STEP = re.compile(r"^J-\d{2}\.\d+$")
+_THREE_DIGIT = re.compile(r"^(BR|FR|NFR|SCR|ARC|US|TC)-\d{3}\Z")
+_TWO_DIGIT = re.compile(r"^(P|J)-\d{2}\Z")
+_JOURNEY_STEP = re.compile(r"^J-\d{2}\.\d+\Z")
 
 
 def id_type(artifact_id: str) -> str | None:

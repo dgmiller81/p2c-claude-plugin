@@ -33,6 +33,15 @@ def test_invalid_ids_rejected(artifact_id):
     assert id_type(artifact_id) is None
 
 
+@pytest.mark.parametrize(
+    "artifact_id",
+    ["FR-012\n", "P-02\n", "J-01.4\n"],
+)
+def test_ids_with_trailing_whitespace_rejected(artifact_id):
+    assert is_valid_id(artifact_id) is False
+    assert id_type(artifact_id) is None
+
+
 def test_journey_step_parent():
     assert journey_step_parent("J-01.4") == "J-01"
     assert journey_step_parent("J-01") is None
