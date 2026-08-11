@@ -1,10 +1,41 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from tracelib.errors import Gap, StaleEntry
 from tracelib.graph import Graph
+
+_NEWLINE_RE = re.compile(r"[\r\n]+")
+
+
+def _cell(value: object) -> str:
+    """Stringify a value for safe interpolation into a Markdown table cell.
+
+    Escapes `|` so it can't be mistaken for a column delimiter, and collapses
+    any run of newlines/carriage returns to a single space so a value can
+    never split a row across multiple lines.
+    """
+    text = str(value)
+    text = text.replace("|", "\\|")
+    text = _NEWLINE_RE.sub(" ", text)
+    return text
+
+
+def _status_for(
+    req_id: str,
+    chain: dict[str, list[str]],
+    gap_subjects: set[str],
+    stale_subjects: set[str],
+) -> str:
+    if req_id in stale_subjects:
+        return "STALE"
+    if req_id in gap_subjects:
+        return "GAP"
+    if not any(chain.values()):
+        return "unverified"
+    return "ok"
 
 
 def _chain_for(graph: Graph, req_id: str) -> dict[str, list[str]]:
@@ -47,43 +78,56 @@ def write_rtm(
 
     for req in sorted(graph.by_type("requirement"), key=lambda s: s.id):
         chain = _chain_for(graph, req.id)
-        if req.id in stale_subjects:
-            status = "STALE"
-        elif req.id in gap_subjects:
-            status = "GAP"
-        else:
-            status = "ok"
+        status = _status_for(req.id, chain, gap_subjects, stale_subjects)
         lines.append(
             "| {id} | {kind} | {surface} | {p} | {j} | {s} | {c} | {u} | {t} | {st} |".format(
-                id=req.id,
-                kind=req.frontmatter.get("kind", ""),
-                surface=req.frontmatter.get("surface", "—"),
-                p=", ".join(chain["persona"]) or "—",
-                j=", ".join(chain["journey_step"]) or "—",
-                s=", ".join(chain["screen"]) or "—",
-                c=", ".join(chain["component"]) or "—",
-                u=", ".join(chain["story"]) or "—",
-                t=", ".join(chain["test"]) or "—",
-                st=status,
+                id=_cell(req.id),
+                kind=_cell(req.frontmatter.get("kind", "")),
+                surface=_cell(req.frontmatter.get("surface", "—")),
+                p=_cell(", ".join(chain["persona"]) or "—"),
+                j=_cell(", ".join(chain["journey_step"]) or "—"),
+                s=_cell(", ".join(chain["screen"]) or "—"),
+                c=_cell(", ".join(chain["component"]) or "—"),
+                u=_cell(", ".join(chain["story"]) or "—"),
+                t=_cell(", ".join(chain["test"]) or "—"),
+                st=_cell(status),
             )
         )
 
+    lines.append("")
+    lines.append(
+        "Status legend: `ok` = has a downstream chain and was not flagged; "
+        "`unverified` = nothing downstream traces to this requirement; "
+        "`GAP` = flagged by the gap detector; `STALE` = flagged by the staleness detector."
+    )
     lines.append("")
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def write_index(
-    graph: Graph, gaps: list[Gap], stale: list[StaleEntry], out_path: Path
+    graph: Graph,
+    gaps: list[Gap],
+    stale: list[StaleEntry],
+    out_path: Path,
+    *,
+    root: Path | None = None,
 ) -> None:
     stale_by_subject = {e.subject: e for e in stale}
     nodes: dict[str, dict] = {}
 
     for node_id, sc in sorted(graph.nodes.items()):
         entry = stale_by_subject.get(node_id)
+        if root is not None:
+            try:
+                path_str = sc.path.relative_to(root).as_posix()
+            except ValueError:
+                path_str = sc.path.as_posix()
+        else:
+            path_str = sc.path.as_posix()
         nodes[node_id] = {
             "type": sc.type,
             "title": sc.frontmatter.get("title", ""),
-            "path": str(sc.path),
+            "path": path_str,
             "declared_status": sc.frontmatter.get("status", ""),
             "effective_status": "stale" if entry else sc.frontmatter.get("status", ""),
             "traces_to": sorted(graph.out.get(node_id, set())),
@@ -95,7 +139,8 @@ def write_index(
     payload = {
         "nodes": nodes,
         "gaps": [
-            {"kind": g.kind, "subject": g.subject, "message": g.message} for g in gaps
+            {"kind": g.kind, "subject": g.subject, "message": g.message}
+            for g in sorted(gaps, key=lambda g: (g.kind, g.subject))
         ],
         "stale": [
             {
@@ -104,7 +149,7 @@ def write_index(
                 "changed_upstream": e.changed_upstream,
                 "signoff_voided": e.signoff_voided,
             }
-            for e in stale
+            for e in sorted(stale, key=lambda e: e.subject)
         ],
         "summary": {
             "nodes": len(nodes),
@@ -126,7 +171,9 @@ def write_gaps(gaps: list[Gap], stale: list[StaleEntry], out_path: Path) -> None
     else:
         lines += ["## Gaps", "", "| Kind | Subject | Detail |", "|---|---|---|"]
         for gap in sorted(gaps, key=lambda g: (g.kind, g.subject)):
-            lines.append(f"| {gap.kind} | {gap.subject} | {gap.message} |")
+            lines.append(
+                f"| {_cell(gap.kind)} | {_cell(gap.subject)} | {_cell(gap.message)} |"
+            )
         lines.append("")
 
     if not stale:
@@ -141,8 +188,8 @@ def write_gaps(gaps: list[Gap], stale: list[StaleEntry], out_path: Path) -> None
         for entry in sorted(stale, key=lambda e: e.subject):
             signoff = "sign-off voided" if entry.signoff_voided else "—"
             lines.append(
-                f"| {entry.subject} | {entry.reason} | "
-                f"{', '.join(entry.changed_upstream) or '—'} | {signoff} |"
+                f"| {_cell(entry.subject)} | {_cell(entry.reason)} | "
+                f"{_cell(', '.join(entry.changed_upstream) or '—')} | {_cell(signoff)} |"
             )
         lines.append("")
 
@@ -154,6 +201,8 @@ def write_all(
     gaps: list[Gap],
     stale: list[StaleEntry],
     traceability_dir: Path,
+    *,
+    root: Path | None = None,
 ) -> list[Path]:
     traceability_dir.mkdir(parents=True, exist_ok=True)
     rtm = traceability_dir / "rtm.md"
@@ -161,6 +210,6 @@ def write_all(
     gaps_path = traceability_dir / "gaps.md"
 
     write_rtm(graph, gaps, stale, rtm)
-    write_index(graph, gaps, stale, index)
+    write_index(graph, gaps, stale, index, root=root)
     write_gaps(gaps, stale, gaps_path)
     return [rtm, index, gaps_path]
