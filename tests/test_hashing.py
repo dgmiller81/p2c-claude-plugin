@@ -54,3 +54,59 @@ def test_non_requirement_hashes_title_and_body():
                                   "title": "Dispatcher"}, "Body two.")
     assert normative_hash(a) != normative_hash(b)
     assert "Dispatcher" in normative_text(a)
+
+
+def test_unrecognized_type_uses_the_non_requirement_branch():
+    """Unrecognized type falls back to title+body, ignoring requirement fields.
+
+    This characterization test locks in the documented fallback behavior.
+    An unrecognized type (e.g., "Requirement" with wrong case) must use the
+    non-requirement branch, proving that statement and acceptance_criteria
+    are ignored and title+body are normative.
+    """
+    # Build a sidecar with unrecognized type "Requirement" (wrong case)
+    # carrying both statement/acceptance_criteria AND a distinct title/body.
+    same_title_and_body = Sidecar(
+        Path("X-01.md"),
+        {
+            "id": "X-01",
+            "type": "Requirement",  # Wrong case: not recognized as requirement
+            "title": "The Title",
+            "statement": "This is the statement field.",
+            "acceptance_criteria": ["First criterion", "Second criterion"],
+        },
+        "The body text."
+    )
+
+    # Build an identical non-requirement sidecar with same title/body
+    # but different statement and criteria.
+    same_title_and_body_different_requirements = Sidecar(
+        Path("X-01.md"),
+        {
+            "id": "X-01",
+            "type": "Requirement",  # Same wrong case
+            "title": "The Title",
+            "statement": "Completely different statement.",
+            "acceptance_criteria": ["Different criteria"],
+        },
+        "The body text."
+    )
+
+    # Both should have the same hash because the unrecognized type
+    # uses the non-requirement branch, which only cares about title+body.
+    assert normative_hash(same_title_and_body) == normative_hash(
+        same_title_and_body_different_requirements
+    )
+
+
+def test_reordering_acceptance_criteria_changes_the_hash():
+    """Acceptance criteria order is meaningful and must not be sorted away.
+
+    This characterization test prevents a future refactor from "tidying"
+    the implementation with sorted() or other ordering changes.
+    """
+    criteria_ab = req(acceptance_criteria=["a", "b"])
+    criteria_ba = req(acceptance_criteria=["b", "a"])
+
+    # Hashes must differ because order matters by design.
+    assert normative_hash(criteria_ab) != normative_hash(criteria_ba)
