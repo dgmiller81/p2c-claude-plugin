@@ -444,7 +444,7 @@ def journey_step_parent(step_id: str) -> str | None:
 python -m pytest tests/test_ids.py -v
 ```
 
-Expected: 21 passed
+Expected: 19 passed (10 + 8 parametrized cases, plus 1)
 
 - [ ] **Step 5: Commit**
 
@@ -866,7 +866,7 @@ def test_nodes_indexed_by_id():
 def test_journey_steps_become_nodes():
     g = build_graph(sample())
     assert "J-01.4" in g.nodes
-    assert g.out["J-01.4"] == {"J-01", "SCR-004"} or "J-01" in g.out["J-01.4"]
+    assert g.out["J-01.4"] == {"J-01", "SCR-004"}
 
 
 def test_edges_are_bidirectional():
@@ -893,7 +893,9 @@ def test_downstream_survives_cycles():
             "traces_to": ["FR-001"]}),
     ]
     g = build_graph(nodes)
-    assert g.downstream("FR-001") == {"FR-001", "FR-002"} - {"FR-001"} | {"FR-002"}
+    # In a cycle each node is downstream of itself; the assertion proves the
+    # traversal terminates rather than recursing forever.
+    assert g.downstream("FR-001") == {"FR-001", "FR-002"}
 
 
 def test_dangling_references_recorded():
@@ -1282,8 +1284,10 @@ def gaps_for(fixtures_root, name, stage):
     return check(graph, stage, root)
 
 
-def test_clean_fixture_passes_every_stage(fixtures_root):
-    for stage in ("requirements", "design"):
+def test_clean_fixture_passes_pre_build_stages(fixtures_root):
+    # `build` is excluded deliberately: the clean fixture has no stories yet,
+    # which test_build_stage_requires_a_story asserts separately.
+    for stage in ("requirements", "design", "handoff"):
         assert gaps_for(fixtures_root, "clean", stage) == []
 
 
@@ -1801,7 +1805,7 @@ def test_index_json_round_trips(tmp_path, fixtures_root):
 
     data = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
     assert data["nodes"]["FR-012"]["type"] == "requirement"
-    assert "SCR-004" in data["nodes"]["FR-012"]["downstream"]
+    assert "SCR-004" in data["nodes"]["FR-012"]["traced_by"]
     assert data["summary"]["gaps"] == 0
 
 
@@ -1929,7 +1933,9 @@ def write_index(
             "declared_status": sc.frontmatter.get("status", ""),
             "effective_status": "stale" if entry else sc.frontmatter.get("status", ""),
             "traces_to": sorted(graph.out.get(node_id, set())),
-            "downstream": sorted(graph.inc.get(node_id, set())),
+            # Direct incoming edges only. `Graph.downstream()` is transitive —
+            # the names are deliberately different to keep that distinction.
+            "traced_by": sorted(graph.inc.get(node_id, set())),
         }
 
     payload = {
@@ -2350,9 +2356,10 @@ import pytest
 from tracelib.schema import validate
 from tracelib.sidecar import parse_sidecar
 
-TEMPLATES = (
-    Path("plugins/p2c/skills/p2c/templates")
-)
+# Anchored to the repo root, not the CWD, so the suite passes from any
+# working directory.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATES = REPO_ROOT / "plugins" / "p2c" / "skills" / "p2c" / "templates"
 
 SUBSTITUTIONS = {
     "requirement-template.md": {
