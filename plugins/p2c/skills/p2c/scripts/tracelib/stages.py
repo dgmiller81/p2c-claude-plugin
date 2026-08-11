@@ -81,6 +81,27 @@ def _check_requirements_stage(graph: Graph) -> list[Gap]:
     return gaps
 
 
+def _orphan_artifacts(graph: Graph, type_name: str) -> list[Gap]:
+    """Artifacts of `type_name` that trace to nothing.
+
+    The spec's orphan-artifact case is "a screen OR COMPONENT tracing to
+    nothing" — work nobody asked for. schema.MAY_BE_EMPTY deliberately lets
+    an empty `traces_to` through for screen, component, story and test,
+    because it is a traceability gap rather than a structural defect — but
+    that only holds if something downstream actually reports it.
+    """
+    return [
+        Gap(
+            "orphan-artifact",
+            node.id,
+            f"{type_name} traces to nothing; no requirement asked for it "
+            "(scope creep)",
+        )
+        for node in sorted(graph.by_type(type_name), key=lambda s: s.id)
+        if not node.frontmatter.get("traces_to")
+    ]
+
+
 def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
     gaps: list[Gap] = []
 
@@ -98,16 +119,10 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
                 )
             )
 
+    gaps.extend(_orphan_artifacts(graph, "screen"))
+
     for screen in graph.by_type("screen"):
         fm = screen.frontmatter
-        if not fm.get("traces_to"):
-            gaps.append(
-                Gap(
-                    "orphan-artifact",
-                    screen.id,
-                    "screen traces to no requirement (scope creep)",
-                )
-            )
         if not fm.get("personas"):
             gaps.append(
                 Gap("broken-chain", screen.id, "screen declares no persona")
@@ -254,7 +269,7 @@ def _check_unhashed_links(graph: Graph) -> list[Gap]:
 
 
 def _check_handoff_stage(graph: Graph) -> list[Gap]:
-    gaps: list[Gap] = []
+    gaps: list[Gap] = _orphan_artifacts(graph, "component")
     for req in _requirements(graph):
         if req.frontmatter.get("kind") == "business":
             continue
@@ -272,7 +287,9 @@ def _check_handoff_stage(graph: Graph) -> list[Gap]:
 
 
 def _check_build_stage(graph: Graph) -> list[Gap]:
-    gaps: list[Gap] = []
+    gaps: list[Gap] = _orphan_artifacts(graph, "story") + _orphan_artifacts(
+        graph, "test"
+    )
     for req in _requirements(graph):
         if req.frontmatter.get("kind") == "business":
             continue

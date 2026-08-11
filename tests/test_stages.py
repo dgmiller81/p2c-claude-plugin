@@ -293,6 +293,70 @@ def test_parent_traversal_state_path_is_rejected(tmp_path):
     assert any(g.kind == "missing-state" and g.subject == "SCR-004" for g in gaps)
 
 
+def _artifact(tmp_path, artifact_id, type_name, traces_to):
+    fm = {
+        "id": artifact_id,
+        "type": type_name,
+        "title": "A",
+        "status": "draft",
+        "traces_to": traces_to,
+    }
+    if type_name == "screen":
+        fm.update(personas=["P-02"], journey_steps=["J-01.4"], states={})
+    return Sidecar(path=tmp_path / f"{artifact_id}.md", frontmatter=fm, body="")
+
+
+def test_component_tracing_to_nothing_is_flagged(tmp_path):
+    # schema.MAY_BE_EMPTY deliberately lets `traces_to: []` through for
+    # components, stories and tests -- it is a traceability gap, not a
+    # structural defect. But stages only ever checked screens, so a
+    # component nobody asked for was invisible at every stage.
+    component = _artifact(tmp_path, "ARC-002", "component", [])
+    gaps = check(build_graph([component]), "handoff", tmp_path)
+    flagged = [
+        g for g in gaps if g.kind == "orphan-artifact" and g.subject == "ARC-002"
+    ]
+    assert flagged
+    assert "component" in flagged[0].message
+
+
+def test_component_tracing_to_something_is_not_flagged(tmp_path):
+    req = Sidecar(
+        path=tmp_path / "FR-012.md",
+        frontmatter={"id": "FR-012", "type": "requirement", "title": "R"},
+        body="",
+    )
+    component = _artifact(tmp_path, "ARC-002", "component", ["FR-012"])
+    component.frontmatter["source_hash"] = {"FR-012": "aaaaaa"}
+    gaps = check(build_graph([req, component]), "handoff", tmp_path)
+    assert not any(
+        g.kind == "orphan-artifact" and g.subject == "ARC-002" for g in gaps
+    )
+
+
+@pytest.mark.parametrize(
+    "artifact_id,type_name", [("US-031", "story"), ("TC-004", "test")]
+)
+def test_story_and_test_tracing_to_nothing_are_flagged_at_build(
+    tmp_path, artifact_id, type_name
+):
+    node = _artifact(tmp_path, artifact_id, type_name, [])
+    gaps = check(build_graph([node]), "build", tmp_path)
+    flagged = [
+        g
+        for g in gaps
+        if g.kind == "orphan-artifact" and g.subject == artifact_id
+    ]
+    assert flagged
+    assert type_name in flagged[0].message
+    # Not yet checked at handoff -- stories and tests are a build-stage
+    # concern.
+    earlier = check(build_graph([node]), "handoff", tmp_path)
+    assert not any(
+        g.kind == "orphan-artifact" and g.subject == artifact_id for g in earlier
+    )
+
+
 def test_journey_step_without_a_screen_is_flagged(tmp_path):
     # The design spec lists "journey step has no screen" as an explicit
     # failure condition of the functional+ui chain. The journey-level check
