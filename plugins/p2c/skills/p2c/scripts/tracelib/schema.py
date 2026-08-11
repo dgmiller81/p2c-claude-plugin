@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
@@ -8,6 +9,14 @@ from typing import Any
 from tracelib.errors import SchemaError
 from tracelib.ids import id_type, is_valid_id
 from tracelib.sidecar import Sidecar
+
+# Shape of a normative_hash() digest: 6 lowercase hex characters. Recorded
+# source_hash values must match this as *strings* — an unquoted YAML scalar
+# like `000000` is parsed as an octal int (losing its padding) rather than
+# the string "000000", which would silently break the staleness comparison
+# in tracelib.staleness.detect(). Validating here, before detect() ever
+# runs, is the only place the original text can still be inspected.
+HASH_PATTERN = re.compile(r"^[0-9a-f]{6}$")
 
 REQUIRED_COMMON = ("id", "type", "title", "status")
 
@@ -49,6 +58,49 @@ def _presence_errors(
         elif not fm.get(name) and name not in MAY_BE_EMPTY:
             errors.append(
                 SchemaError(path, subject, name, f"field '{name}' must not be empty")
+            )
+    return errors
+
+
+def _source_hash_errors(
+    fm: dict[str, Any], path: Path, subject: str
+) -> list[SchemaError]:
+    if "source_hash" not in fm:
+        return []
+
+    value = fm.get("source_hash")
+    if not isinstance(value, dict):
+        return [
+            SchemaError(
+                path,
+                subject,
+                "source_hash",
+                "'source_hash' must be a mapping of upstream ID to hash",
+            )
+        ]
+
+    errors: list[SchemaError] = []
+    for key, entry in value.items():
+        if not isinstance(entry, str):
+            errors.append(
+                SchemaError(
+                    path,
+                    subject,
+                    "source_hash",
+                    f"source_hash['{key}'] must be a quoted 6-character hex "
+                    "string; unquoted values like 000000 are parsed as "
+                    "numbers by YAML and lose their padding",
+                )
+            )
+        elif not HASH_PATTERN.match(entry):
+            errors.append(
+                SchemaError(
+                    path,
+                    subject,
+                    "source_hash",
+                    f"source_hash['{key}'] must be a quoted 6-character "
+                    f"lowercase hex string, got {entry!r}",
+                )
             )
     return errors
 
@@ -115,6 +167,8 @@ def validate(sc: Sidecar) -> list[SchemaError]:
                     f"'{value}' not one of {', '.join(allowed)}",
                 )
             )
+
+    errors.extend(_source_hash_errors(fm, sc.path, subject))
 
     return errors
 

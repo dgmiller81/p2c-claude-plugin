@@ -106,3 +106,44 @@ def test_duplicate_id_error_names_every_offending_path():
     errors = validate_all([a, b])
     paths = {e.path.name for e in errors}
     assert {"a.md", "b.md"} <= paths
+
+
+VALID_SCREEN = {
+    "id": "SCR-004",
+    "type": "screen",
+    "title": "Queue",
+    "status": "draft",
+    "traces_to": ["FR-012"],
+    "states": {"default": "SCR-004.html"},
+}
+
+
+def test_numeric_source_hash_is_rejected():
+    # This is what YAML produces from an unquoted `000000` in frontmatter:
+    # the leading-zero all-octal scalar is parsed as int 0, silently
+    # dropping the padding. Schema validation must catch this before it
+    # reaches staleness detection.
+    fm = dict(VALID_SCREEN, source_hash={"FR-012": 0})
+    errors = validate(make(fm))
+    assert any(e.field_name == "source_hash" for e in errors)
+
+
+def test_wrong_length_source_hash_is_rejected():
+    fm = dict(VALID_SCREEN, source_hash={"FR-012": "abc"})
+    errors = validate(make(fm))
+    assert any(e.field_name == "source_hash" for e in errors)
+
+
+def test_uppercase_source_hash_is_rejected():
+    # normative_hash() emits lowercase hex; an uppercase recorded value
+    # would never match and would produce false staleness.
+    fm = dict(VALID_SCREEN, source_hash={"FR-012": "A3F9C1"})
+    errors = validate(make(fm))
+    assert any(e.field_name == "source_hash" for e in errors)
+
+
+def test_valid_source_hash_passes():
+    fm = dict(VALID_SCREEN, source_hash={"FR-012": "a3f9c1"})
+    assert validate(make(fm)) == []
+    fm_empty = dict(VALID_SCREEN, source_hash={})
+    assert validate(make(fm_empty)) == []

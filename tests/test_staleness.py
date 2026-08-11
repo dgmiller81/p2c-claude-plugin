@@ -55,6 +55,17 @@ def test_detect_is_read_only(fixtures_root):
     assert before == after
 
 
+def test_yaml_parses_padded_hash_as_string_when_quoted():
+    # Characterization test documenting why source_hash values must be
+    # quoted: an unquoted `000000` is parsed by YAML as an octal int (0),
+    # silently losing its padding, whereas a quoted '000000' round-trips
+    # as the string "000000". This is why schema.py's source_hash
+    # validation (see tests/test_schema.py) requires quoted hex strings.
+    import yaml
+
+    assert yaml.safe_load("h: '000000'")["h"] == "000000"
+
+
 def test_apply_status_writes_stale_and_strips_signoff(tmp_path, fixtures_root):
     import shutil
 
