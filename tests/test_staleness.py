@@ -88,3 +88,35 @@ def test_apply_status_writes_stale_and_strips_signoff(tmp_path, fixtures_root):
     assert screen.frontmatter["status"] == "stale"
     assert "signoff" not in screen.frontmatter
     assert any(p.name == "SCR-004.md" for p in written)
+
+
+def test_apply_status_never_rewrites_a_journey_file(tmp_path, fixtures_root):
+    # Journey steps are SYNTHESIZED nodes: graph._synthesize_journey_steps
+    # gives each one the owning journey's path and an empty body. A stale
+    # step must therefore never be written back, or apply_status overwrites
+    # the journey's own file with the step's frontmatter and destroys the
+    # journey's persona, steps, title and prose beyond recovery.
+    import shutil
+
+    root = tmp_path / "ws"
+    shutil.copytree(fixtures_root / "stale-hash", root)
+
+    sources = sorted(
+        p for p in root.rglob("*.md") if "traceability" not in p.parts
+    )
+    before = {p: parse_sidecar(p).id for p in sources}
+
+    graph = build_graph(load_workspace(root))
+    written = apply_status(detect(graph), graph)
+
+    after = {p: parse_sidecar(p).id for p in sources}
+    assert after == before, "apply_status rewrote a file with another node's identity"
+
+    journey = parse_sidecar(root / "03-design" / "journeys" / "J-01.md")
+    assert journey.frontmatter["type"] == "journey"
+    assert journey.frontmatter["persona"] == "P-02"
+    assert journey.frontmatter["steps"]
+
+    # Return value must name only files actually written.
+    assert all(p in before for p in written)
+    assert not any(p.name == "J-01.md" for p in written)
