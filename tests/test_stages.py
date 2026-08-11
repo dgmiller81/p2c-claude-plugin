@@ -39,6 +39,11 @@ def test_broken_chain_detected_when_screen_has_no_persona(fixtures_root):
     gaps = gaps_for(fixtures_root, "broken-chain", "design")
     assert any(g.kind == "broken-chain" and g.subject == "SCR-004"
                for g in gaps)
+    # The fixture is meant to isolate ONE defect (no persona declared on the
+    # screen). P-02 is still reachable through J-01's singular `persona:`
+    # field, so it must not also show up as an orphan artifact.
+    assert not any(g.kind == "orphan-artifact" and g.subject == "P-02"
+                   for g in gaps)
 
 
 def test_missing_state_file_detected(fixtures_root):
@@ -95,3 +100,123 @@ def test_duplicate_journey_step_reported_at_requirements_stage(tmp_path):
     graph = build_graph([journey_a, journey_b])
     gaps = check(graph, "requirements", tmp_path)
     assert any(g.kind == "duplicate-step" and g.subject == "J-01.4" for g in gaps)
+
+
+def test_screen_tracing_only_through_a_component_does_not_serve_the_requirement(tmp_path):
+    # FR-012 is only reachable from SCR-004 by going through ARC-002 (two
+    # hops). No screen names FR-012 directly. `_consumers_of_type` must not
+    # count this as "served" -- transitivity is for staleness cascade, not
+    # for deciding whether a requirement reached design.
+    req = Sidecar(
+        path=tmp_path / "FR-012.md",
+        frontmatter={
+            "id": "FR-012",
+            "type": "requirement",
+            "kind": "functional",
+            "surface": "ui",
+            "title": "R",
+        },
+        body="",
+    )
+    component = Sidecar(
+        path=tmp_path / "ARC-002.md",
+        frontmatter={
+            "id": "ARC-002",
+            "type": "component",
+            "title": "C",
+            "traces_to": ["FR-012"],
+        },
+        body="",
+    )
+    screen = Sidecar(
+        path=tmp_path / "SCR-004.md",
+        frontmatter={
+            "id": "SCR-004",
+            "type": "screen",
+            "title": "S",
+            "traces_to": ["ARC-002"],
+        },
+        body="",
+    )
+    graph = build_graph([req, component, screen])
+    gaps = check(graph, "design", tmp_path)
+    assert any(g.kind == "orphan-requirement" and g.subject == "FR-012" for g in gaps)
+
+
+def test_absolute_state_path_is_rejected(tmp_path):
+    # A state value that is an absolute path makes `root / _MOCKUP_DIR /
+    # filename` discard `root` entirely (pathlib behavior when the right
+    # operand is absolute). C:/Windows/win.ini genuinely exists on this
+    # machine, so an unguarded `.is_file()` check would wrongly pass.
+    screen = Sidecar(
+        path=tmp_path / "SCR-004.md",
+        frontmatter={
+            "id": "SCR-004",
+            "type": "screen",
+            "title": "S",
+            "traces_to": ["FR-012"],
+            "personas": ["P-02"],
+            "journey_steps": ["J-01.4"],
+            "states": {"error": "C:/Windows/win.ini"},
+        },
+        body="",
+    )
+    graph = build_graph([screen])
+    gaps = check(graph, "design", tmp_path)
+    assert any(g.kind == "missing-state" and g.subject == "SCR-004" for g in gaps)
+
+
+def test_parent_traversal_state_path_is_rejected(tmp_path):
+    # A state value containing `..` can escape the mockups directory. Plant
+    # a real file two levels up from 03-design/mockups (i.e. directly under
+    # the workspace root) so an unguarded `.is_file()` check would wrongly
+    # resolve and pass.
+    secret = tmp_path / "secret.html"
+    secret.write_text("<html>leaked</html>", encoding="utf-8")
+    screen = Sidecar(
+        path=tmp_path / "SCR-004.md",
+        frontmatter={
+            "id": "SCR-004",
+            "type": "screen",
+            "title": "S",
+            "traces_to": ["FR-012"],
+            "personas": ["P-02"],
+            "journey_steps": ["J-01.4"],
+            "states": {"error": "../../secret.html"},
+        },
+        body="",
+    )
+    graph = build_graph([screen])
+    gaps = check(graph, "design", tmp_path)
+    assert any(g.kind == "missing-state" and g.subject == "SCR-004" for g in gaps)
+
+
+def test_journey_with_no_screen_referencing_its_steps_is_orphaned(tmp_path, fixtures_root):
+    # J-01's own synthesized step always creates an inbound edge onto J-01
+    # (step --traces_to--> journey), so the old "does anything point at
+    # this journey" check can never fire. The real question is whether any
+    # SCREEN references one of the journey's steps.
+    persona = Sidecar(
+        path=tmp_path / "P-02.md",
+        frontmatter={"id": "P-02", "type": "persona", "title": "P"},
+        body="",
+    )
+    journey = Sidecar(
+        path=tmp_path / "J-01.md",
+        frontmatter={
+            "id": "J-01",
+            "type": "journey",
+            "title": "J",
+            "persona": "P-02",
+            "steps": [{"id": "J-01.4", "label": "Step", "screen": "SCR-004"}],
+        },
+        body="",
+    )
+    graph = build_graph([persona, journey])
+    gaps = check(graph, "design", tmp_path)
+    assert any(g.kind == "orphan-artifact" and g.subject == "J-01" for g in gaps)
+
+    # Not merely inverted: the clean fixture's J-01 IS referenced (SCR-004
+    # declares journey_steps: [J-01.4]) and must not be flagged.
+    clean_gaps = gaps_for(fixtures_root, "clean", "design")
+    assert not any(g.kind == "orphan-artifact" and g.subject == "J-01" for g in clean_gaps)

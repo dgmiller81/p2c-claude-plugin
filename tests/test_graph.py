@@ -93,3 +93,13 @@ def test_duplicate_journey_step_id_across_journeys_is_recorded():
 def test_no_collisions_recorded_for_clean_graph():
     g = build_graph(sample())
     assert g.collisions == []
+
+
+def test_journey_persona_singular_creates_an_edge():
+    nodes = [
+        sc({"id": "P-02", "type": "persona", "title": "P"}),
+        sc({"id": "J-01", "type": "journey", "title": "J", "persona": "P-02"}),
+    ]
+    g = build_graph(nodes)
+    assert "P-02" in g.out["J-01"]
+    assert "J-01" in g.inc["P-02"]

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tracelib.errors import Gap
 from tracelib.graph import Graph
+from tracelib.ids import journey_step_parent
 
 STAGES: tuple[str, ...] = ("requirements", "design", "handoff", "build")
 
@@ -21,9 +22,13 @@ def _requirements(graph: Graph) -> list:
 
 
 def _consumers_of_type(graph: Graph, req_id: str, type_name: str) -> list[str]:
+    # Direct edges only. `graph.downstream` is the transitive closure, which
+    # is correct for staleness cascade but wrong here: a screen that only
+    # traces to a component that traces to the requirement never actually
+    # named the requirement, and must not count as serving it.
     return [
         node_id
-        for node_id in graph.downstream(req_id)
+        for node_id in graph.inc.get(req_id, set())
         if graph.nodes[node_id].type == type_name
     ]
 
@@ -102,21 +107,62 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
 
         states = fm.get("states") or {}
         for state_name, filename in sorted(states.items()):
-            if not (root / _MOCKUP_DIR / str(filename)).is_file():
+            filename_str = str(filename)
+            candidate = Path(filename_str)
+            # `root / _MOCKUP_DIR / candidate` silently discards `root` when
+            # `candidate` is absolute (pathlib joining semantics), and `..`
+            # segments can walk the join outside the mockups directory
+            # entirely. Reject both before ever touching the filesystem.
+            if candidate.is_absolute() or ".." in candidate.parts:
                 gaps.append(
                     Gap(
                         "missing-state",
                         screen.id,
-                        f"declared state '{state_name}' file '{filename}' not found",
+                        f"declared state '{state_name}' file '{filename_str}' must be a "
+                        "relative filename inside the mockups directory "
+                        "(no absolute paths or '..' segments)",
+                    )
+                )
+                continue
+            if not (root / _MOCKUP_DIR / candidate).is_file():
+                gaps.append(
+                    Gap(
+                        "missing-state",
+                        screen.id,
+                        f"declared state '{state_name}' file '{filename_str}' not found",
                     )
                 )
 
-    for type_name, label in (("persona", "persona"), ("journey", "journey map")):
-        for node in graph.by_type(type_name):
-            if not graph.inc.get(node.id):
-                gaps.append(
-                    Gap("orphan-artifact", node.id, f"{label} is referenced by nothing")
+    for persona in graph.by_type("persona"):
+        if not graph.inc.get(persona.id):
+            gaps.append(
+                Gap("orphan-artifact", persona.id, "persona is referenced by nothing")
+            )
+
+    for journey in graph.by_type("journey"):
+        # A journey's own synthesized steps always create an inbound edge
+        # onto the journey (step --traces_to--> journey), and schema
+        # requires `steps` to be non-empty, so "is anything pointing at
+        # this journey" can never fire. The real question is whether any
+        # SCREEN actually uses one of the journey's steps.
+        step_ids = [
+            sc.id
+            for sc in graph.nodes.values()
+            if sc.type == "journey_step" and journey_step_parent(sc.id) == journey.id
+        ]
+        used_by_a_screen = any(
+            graph.nodes[consumer].type == "screen"
+            for step_id in step_ids
+            for consumer in graph.inc.get(step_id, set())
+        )
+        if not used_by_a_screen:
+            gaps.append(
+                Gap(
+                    "orphan-artifact",
+                    journey.id,
+                    "journey has no step referenced by any screen",
                 )
+            )
 
     return gaps
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from tracelib.ids import journey_step_parent
 from tracelib.sidecar import Sidecar
 
-LINK_FIELDS = ("traces_to", "personas", "journey_steps")
+LINK_FIELDS = ("traces_to", "personas", "persona", "journey_steps")
 
 
 @dataclass
