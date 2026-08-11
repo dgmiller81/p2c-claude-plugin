@@ -1,0 +1,10 @@
+# install.sh is fetched and piped straight into bash. If it ever gets stored
+# with CRLF endings, every POSIX user sees "bad interpreter: /usr/bin/env bash^M".
+# Pin it to LF regardless of the platform it is committed from.
+*.sh text eol=lf
+
+# PowerShell is happiest with CRLF on Windows.
+*.ps1 text eol=crlf
+
+# Python is executed, not just read — keep it LF everywhere.
+*.py text eol=lf
