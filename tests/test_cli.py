@@ -163,9 +163,13 @@ def test_non_object_config_does_not_crash(workspace, raw):
 
 
 def test_non_dict_gates_does_not_crash(workspace):
+    # `{"gates": []}` did not exercise the guard: the pre-fix code did
+    # `gates or {}`, and an empty list is already falsy, so it passed with
+    # or without the isinstance check. A non-empty non-mapping is what
+    # actually reaches `.get()` and raises AttributeError.
     ws = workspace("clean")
     (ws / "config.json").write_text(
-        json.dumps({"gates": []}), encoding="utf-8"
+        json.dumps({"gates": "oops"}), encoding="utf-8"
     )
     assert trace_cli.resolve_stage(ws, None) == "requirements"
 

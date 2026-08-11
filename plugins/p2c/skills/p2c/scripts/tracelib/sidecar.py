@@ -65,8 +65,7 @@ def load_workspace(root: Path) -> list[Sidecar]:
     for path in sorted(root.rglob("*.md")):
         if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
             continue
-        try:
-            found.append(parse_sidecar(path))
-        except SidecarError:
-            raise
+        # SidecarError propagates deliberately: an unparseable sidecar is an
+        # exit-2 condition, not something to skip past.
+        found.append(parse_sidecar(path))
     return found

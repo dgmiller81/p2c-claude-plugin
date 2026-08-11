@@ -245,11 +245,20 @@ def test_screen_tracing_only_through_a_component_does_not_serve_the_requirement(
     assert any(g.kind == "orphan-requirement" and g.subject == "FR-012" for g in gaps)
 
 
-def test_absolute_state_path_is_rejected(tmp_path):
+@pytest.mark.parametrize("state_path", ["C:/Windows/win.ini", "/etc/passwd"])
+def test_absolute_state_path_is_rejected(tmp_path, state_path):
     # A state value that is an absolute path makes `root / _MOCKUP_DIR /
-    # filename` discard `root` entirely (pathlib behavior when the right
-    # operand is absolute). C:/Windows/win.ini genuinely exists on this
-    # machine, so an unguarded `.is_file()` check would wrongly pass.
+    # filename` discard `root` (pathlib behavior when the right operand is
+    # absolute), so an unguarded `.is_file()` check reads a real file
+    # outside the workspace and wrongly passes.
+    #
+    # Both forms are parametrized because absoluteness is platform-shaped:
+    # "C:/Windows/win.ini" is absolute only under Windows semantics and
+    # "/etc/passwd" only under POSIX semantics. A guard that recognises just
+    # the host platform's form leaves the other silently unguarded on the
+    # CI that matters -- and the test still passes, for the wrong reason,
+    # because a nonexistent path also produces a missing-state gap. Hence
+    # the assertion on the GUARD's message rather than on any gap.
     screen = Sidecar(
         path=tmp_path / "SCR-004.md",
         frontmatter={
@@ -259,13 +268,20 @@ def test_absolute_state_path_is_rejected(tmp_path):
             "traces_to": ["FR-012"],
             "personas": ["P-02"],
             "journey_steps": ["J-01.4"],
-            "states": {"error": "C:/Windows/win.ini"},
+            "states": {"error": state_path},
         },
         body="",
     )
     graph = build_graph([screen])
     gaps = check(graph, "design", tmp_path)
-    assert any(g.kind == "missing-state" and g.subject == "SCR-004" for g in gaps)
+    flagged = [
+        g for g in gaps if g.kind == "missing-state" and g.subject == "SCR-004"
+    ]
+    assert flagged
+    assert "relative filename" in flagged[0].message, (
+        f"{state_path!r} must be rejected by the path guard, not merely "
+        "happen not to exist"
+    )
 
 
 def test_parent_traversal_state_path_is_rejected(tmp_path):

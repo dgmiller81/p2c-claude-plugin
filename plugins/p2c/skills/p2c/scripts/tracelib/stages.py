@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from tracelib.errors import Gap
 from tracelib.graph import Graph
@@ -81,6 +81,23 @@ def _check_requirements_stage(graph: Graph) -> list[Gap]:
     return gaps
 
 
+def _is_unsafe_state_path(value: str) -> bool:
+    """True if a declared state file could resolve outside the mockups dir.
+
+    Absoluteness is platform-shaped: `Path("/etc/passwd").is_absolute()` is
+    False on Windows (no drive) and `Path("C:/Windows/win.ini")` is not
+    absolute on POSIX. A host-platform-only check leaves the other form
+    unguarded on the CI that actually runs it, so both syntaxes are tested
+    with both flavours of PurePath regardless of where we are running.
+    """
+    if value.startswith(("/", "\\")):
+        return True
+    if PureWindowsPath(value).drive or PurePosixPath(value).is_absolute():
+        return True
+    parts = set(PureWindowsPath(value).parts) | set(PurePosixPath(value).parts)
+    return ".." in parts
+
+
 def _orphan_artifacts(graph: Graph, type_name: str) -> list[Gap]:
     """Artifacts of `type_name` that trace to nothing.
 
@@ -148,12 +165,11 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
             continue
         for state_name, filename in sorted(states.items()):
             filename_str = str(filename)
-            candidate = Path(filename_str)
             # `root / _MOCKUP_DIR / candidate` silently discards `root` when
             # `candidate` is absolute (pathlib joining semantics), and `..`
             # segments can walk the join outside the mockups directory
             # entirely. Reject both before ever touching the filesystem.
-            if candidate.is_absolute() or ".." in candidate.parts:
+            if _is_unsafe_state_path(filename_str):
                 gaps.append(
                     Gap(
                         "missing-state",
@@ -164,7 +180,7 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
                     )
                 )
                 continue
-            if not (root / _MOCKUP_DIR / candidate).is_file():
+            if not (root / _MOCKUP_DIR / Path(filename_str)).is_file():
                 gaps.append(
                     Gap(
                         "missing-state",
