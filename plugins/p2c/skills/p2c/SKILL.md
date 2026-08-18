@@ -235,10 +235,13 @@ stops you **must**:
    - the gap list grouped by kind
    - any finding at `len(history) >= 3`, flagged for escalation
 
-3. Never write `status: delivered` into `status.json` while
-   `traceability/gaps.md` is non-empty without naming those gaps in the
-   summary. Advancing is permitted — this is advisory — but advancing
-   *quietly* is not.
+3. Never write `status: delivered` into `status.json` while the checker's
+   most recent run reported any gaps or staleness — exit code 1, or a
+   Gaps/Staleness table in `traceability/gaps.md` with rows in it — without
+   naming those gaps in the summary. Note `gaps.md` always exists and is
+   never byte-empty: a clean run writes "No gaps found." into it, so judge
+   by the exit code or the table rows, never by file size. Advancing is
+   permitted — this is advisory — but advancing *quietly* is not.
 
 The checker reports; it never blocks. Exit code 1 means gaps or staleness
 exist, not that the phase cannot advance. Teams wanting hard enforcement wire
