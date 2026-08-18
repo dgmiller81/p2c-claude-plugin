@@ -60,10 +60,32 @@ def parse_sidecar(path: Path) -> Sidecar:
     )
 
 
+def _has_frontmatter(path: Path) -> bool:
+    """True if the file opens with a YAML frontmatter delimiter.
+
+    A p2c workspace holds prose (prd.md, jtbd.md, ADRs, runbooks) alongside
+    sidecars. Prose is not a malformed sidecar, and letting it raise takes
+    the whole run down with an exit-2 before a single check can run. A file
+    that *does* open with the delimiter is still parsed strictly, so a
+    corrupted sidecar remains an error rather than being silently skipped.
+
+    Matches parse_sidecar's own comparison (`lines[0].rstrip()`), so a line
+    with leading whitespace is not frontmatter in either place.
+    """
+    try:
+        with path.open(encoding="utf-8") as handle:
+            first = handle.readline()
+    except (OSError, UnicodeDecodeError):
+        return False
+    return first.rstrip() == DELIMITER
+
+
 def load_workspace(root: Path) -> list[Sidecar]:
     found: list[Sidecar] = []
     for path in sorted(root.rglob("*.md")):
         if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
+            continue
+        if not _has_frontmatter(path):
             continue
         # SidecarError propagates deliberately: an unparseable sidecar is an
         # exit-2 condition, not something to skip past.

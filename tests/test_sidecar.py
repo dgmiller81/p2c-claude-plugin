@@ -87,3 +87,42 @@ def test_load_workspace_finds_nested_sidecars_and_skips_generated(tmp_path):
     found = load_workspace(tmp_path)
 
     assert [sc.id for sc in found] == ["FR-012"]
+
+
+def test_prose_file_is_skipped_not_an_error(tmp_path):
+    (tmp_path / "prd.md").write_text(
+        "# PRD\n\nProblem: dispatchers cannot resolve exceptions.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "FR-001.md").write_text(
+        "---\n"
+        "id: FR-001\n"
+        "type: requirement\n"
+        "kind: functional\n"
+        "surface: ui\n"
+        "title: Roster sync\n"
+        "statement: The roster syncs across devices.\n"
+        "acceptance_criteria:\n"
+        "  - Sync completes within the budget.\n"
+        "priority: must\n"
+        "status: draft\n"
+        "---\nbody\n",
+        encoding="utf-8",
+    )
+    assert [sc.id for sc in load_workspace(tmp_path)] == ["FR-001"]
+
+
+def test_malformed_yaml_still_raises(tmp_path):
+    (tmp_path / "bad.md").write_text(
+        "---\nid: FR-002\n  bad: [unclosed\n---\nbody\n", encoding="utf-8"
+    )
+    with pytest.raises(SidecarError):
+        load_workspace(tmp_path)
+
+
+def test_unterminated_frontmatter_still_raises(tmp_path):
+    (tmp_path / "bad.md").write_text(
+        "---\nid: FR-003\ntype: requirement\n", encoding="utf-8"
+    )
+    with pytest.raises(SidecarError):
+        load_workspace(tmp_path)
