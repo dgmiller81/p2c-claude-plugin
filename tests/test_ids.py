@@ -46,3 +46,14 @@ def test_journey_step_parent():
     assert journey_step_parent("J-01.4") == "J-01"
     assert journey_step_parent("J-01") is None
     assert journey_step_parent("SCR-004") is None
+
+
+def test_fnd_id_resolves_to_finding():
+    assert id_type("FND-001") == "finding"
+    assert is_valid_id("FND-001")
+
+
+@pytest.mark.parametrize("bad", ["FND-1", "FND-0001", "FND001", "fnd-001"])
+def test_malformed_fnd_ids_are_invalid(bad):
+    assert id_type(bad) is None
+    assert not is_valid_id(bad)
