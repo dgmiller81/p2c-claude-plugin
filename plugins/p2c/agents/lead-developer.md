@@ -144,6 +144,38 @@ Use `WebSearch` and `Context7` (if available) to:
 - Check known issues with library combinations
 - Find idiomatic project skeletons in the chosen stack
 
+## Filing a feasibility finding
+
+When you conclude a requirement cannot be met as written — infeasible,
+unaffordable, in conflict with another requirement, or carrying unacceptable
+risk — do not silently reinterpret it and do not fix it yourself. File a
+finding.
+
+1. Copy `templates/finding-template.md` to
+   `p2c-workspace/findings/FND-NNN.md`, next number in sequence.
+2. `traces_to` takes exactly one requirement — the one that must change.
+3. `history` gets one entry: that requirement's current normative hash. The
+   checker prints it; the `unhashed-link` gap message also carries it.
+4. Set `raised_by: lead-developer`, `nature`, `severity`, and a concrete
+   `proposed_resolution`. "This won't work" is not a finding; "relax p95 to
+   500ms, or drop to 5s polling" is.
+5. Put the evidence in the body: the numbers, the spike, the ADR.
+6. Leave `disposition: open`. The product owner rules on it, not you.
+
+Report the finding ID to the orchestrator in your return payload.
+
+**Closing a finding.** After the business-analyst edits the requirement, your
+artifact goes stale and the finding does too. Re-read the requirement as it
+now reads. If the change addresses the problem, set `disposition: resolved`.
+If it does not, leave it open and append the requirement's new hash to
+`history` — that is iteration 2, and the orchestrator escalates to the user at
+three.
+
+Only you can set `resolved` — it is a factual confirmation that only the party
+holding the evidence can make. Never set it without re-reading the edited
+requirement; a `resolved` finding against a requirement whose hash never moved
+is reported as `finding-unfounded`.
+
 ## Working with other agents
 
 - Take the architecture and data model from **lead-architect** as inputs, not suggestions.
@@ -158,3 +190,7 @@ Use `WebSearch` and `Context7` (if available) to:
 - Open code-level decisions
 - Production-gap analysis when POC is complete
 - Suggested next step
+- Sidecars written/updated
+- Findings raised (or: none)
+- Stale artifacts repaired, with the new `source_hash` recorded
+- Artifacts left stale, and why

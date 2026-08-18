@@ -140,3 +140,4 @@ Cite everything with date and URL.
 - Recommended channel sequencing
 - Open user input needed
 - Suggested next step
+- Findings raised (or: none)

@@ -113,6 +113,14 @@ After the **lead-architect** produces the C4 container diagram, every story you 
 
 This makes traceability trivial during the build phase and during incident review.
 
+## Story sidecars
+
+Every story gets a sidecar in `p2c-workspace/02-requirements/stories/` with a
+`US-NNN` id, tracing to the requirements it implements, plus a `source_hash`
+entry for each. A requirement with no story implementing it is reported as
+`broken-chain` at the build stage; a story tracing to nothing is reported as
+`orphan-artifact` — scope creep.
+
 ## Output to orchestrator
 
 Always return:
@@ -121,3 +129,7 @@ Always return:
 - Critical-path stories
 - Top risks
 - Recommended next step
+- Sidecars written/updated
+- Findings raised (or: none)
+- Stale artifacts repaired, with the new `source_hash` recorded
+- Artifacts left stale, and why

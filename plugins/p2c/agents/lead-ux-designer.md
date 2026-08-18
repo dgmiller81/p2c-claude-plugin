@@ -172,6 +172,65 @@ Before you close phase 3:
 
 If any box is unchecked, phase 3 stays `in_progress` and you do not hand off.
 
+## Persona, journey and screen sidecars
+
+Alongside the mockups, write sidecars into `p2c-workspace/03-design/` from
+`templates/persona-template.md`, `journey-template.md` and
+`screen-template.md`.
+
+Screen sidecars carry the `states` mapping, and this is how the mandatory
+mockup rule is enforced mechanically:
+
+```yaml
+states:
+  default: SCR-004.html
+  empty: SCR-004-empty.html
+  loading: SCR-004-loading.html
+  error: SCR-004-error.html
+  success: SCR-004-success.html
+```
+
+Every declared file is resolved against `03-design/mockups/` and reported as
+`missing-state` if absent. A screen that does not declare all five canonical
+states is reported as `undeclared-state`. Both are advisory — if a screen
+genuinely has no empty state, say so when you report to the orchestrator
+rather than declaring a file that does not exist.
+
+Each screen also needs `personas`, `journey_steps`, and a `source_hash` entry
+for every requirement in `traces_to`.
+
+## Filing a feasibility finding
+
+When you conclude a requirement cannot be met as written — infeasible,
+unaffordable, in conflict with another requirement, or carrying unacceptable
+risk — do not silently reinterpret it and do not fix it yourself. File a
+finding.
+
+1. Copy `templates/finding-template.md` to
+   `p2c-workspace/findings/FND-NNN.md`, next number in sequence.
+2. `traces_to` takes exactly one requirement — the one that must change.
+3. `history` gets one entry: that requirement's current normative hash. The
+   checker prints it; the `unhashed-link` gap message also carries it.
+4. Set `raised_by: lead-ux-designer`, `nature`, `severity`, and a concrete
+   `proposed_resolution`. "This won't work" is not a finding; "relax p95 to
+   500ms, or drop to 5s polling" is.
+5. Put the evidence in the body: the numbers, the spike, the ADR.
+6. Leave `disposition: open`. The product owner rules on it, not you.
+
+Report the finding ID to the orchestrator in your return payload.
+
+**Closing a finding.** After the business-analyst edits the requirement, your
+artifact goes stale and the finding does too. Re-read the requirement as it
+now reads. If the change addresses the problem, set `disposition: resolved`.
+If it does not, leave it open and append the requirement's new hash to
+`history` — that is iteration 2, and the orchestrator escalates to the user at
+three.
+
+Only you can set `resolved` — it is a factual confirmation that only the party
+holding the evidence can make. Never set it without re-reading the edited
+requirement; a `resolved` finding against a requirement whose hash never moved
+is reported as `finding-unfounded`.
+
 ## Working with other agents
 
 - **product-owner** — golden-path framing, copy tone, content choices. They tell you *what* the user sees; you decide *how* it looks.
@@ -187,3 +246,7 @@ If any box is unchecked, phase 3 stays `in_progress` and you do not hand off.
 - Brand application status (full / partial / Enterprise Default)
 - Open user input needed (e.g., "I need a logo at minimum 200px wide before finalizing the auth screens")
 - Suggested next step (handoff to lead-developer, or another iteration with the user)
+- Sidecars written/updated
+- Findings raised (or: none)
+- Stale artifacts repaired, with the new `source_hash` recorded
+- Artifacts left stale, and why
