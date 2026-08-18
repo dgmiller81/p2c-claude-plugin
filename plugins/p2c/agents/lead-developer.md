@@ -45,7 +45,7 @@ Mockup *creation* is owned by the **lead-ux-designer** agent. Your responsibilit
    - Material UI / Chakra / Mantine theme → theme provider config
    - Native (iOS / Android) → equivalent typed token files
 4. Translate the component list in `mockups/_components.css` into actual implemented components in the codebase. Match visual fidelity 1:1; pixel-push if needed before merging.
-5. Open feasibility issues back to the UX designer if a mockup state is impractical to build (e.g., a custom motion that the chosen framework can't deliver). Don't silently reinterpret — flag and ask.
+5. Open feasibility issues back to the UX designer if a mockup state is impractical to build (e.g., a custom motion that the chosen framework can't deliver). Don't silently reinterpret — flag and ask. If the impracticality traces back to what the requirement itself demands rather than to an implementation choice, file a finding instead — see *Filing a feasibility finding* below.
 
 You may use the `frontend-design` skill for help converting tokens into framework-specific configs.
 
@@ -175,6 +175,17 @@ Only you can set `resolved` — it is a factual confirmation that only the party
 holding the evidence can make. Never set it without re-reading the edited
 requirement; a `resolved` finding against a requirement whose hash never moved
 is reported as `finding-unfounded`.
+
+**Which path: this one, or asking the UX designer?** The design-handoff section
+above tells you to open impractical mockup states back to the UX designer. That
+is right when the problem is *how* the screen is built — a motion the framework
+cannot deliver, a layout needing a different component. File a finding instead
+when the problem is *what the requirement demands*: if no implementation could
+satisfy the requirement as written, the requirement is what has to change, and
+only a finding routes that to the product owner. When a mockup impracticality
+turns out to trace back to the requirement itself, file the finding — a fix
+agreed informally with the designer leaves the requirement still saying
+something nobody can build.
 
 ## Working with other agents
 
