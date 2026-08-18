@@ -309,13 +309,13 @@ def test_finding_with_two_targets_is_an_error():
 
 def test_signoff_missing_by_is_an_error():
     assert "signoff" in _fields(
-        validate(make(_finding(signoff={"at": "2026-08-18"})))
+        validate(make(_finding(signoff={"date": "2026-08-18"})))
     )
 
 
 def test_valid_signoff_is_accepted():
     assert validate(
-        make(_finding(signoff={"by": "lead-architect", "at": "2026-08-18"}))
+        make(_finding(signoff={"by": "lead-architect", "date": "2026-08-18"}))
     ) == []
 ```
 
@@ -441,13 +441,13 @@ def _signoff_errors(
                 path,
                 subject,
                 "signoff",
-                "'signoff' must be a mapping with 'by' and 'at'",
+                "'signoff' must be a mapping with 'by' and 'date'",
             )
         ]
 
     return [
         SchemaError(path, subject, "signoff", f"signoff is missing '{name}'")
-        for name in ("by", "at")
+        for name in ("by", "date")
         if not value.get(name)
     ]
 ```
@@ -826,6 +826,16 @@ states:
 
 `tests/test_templates.py::test_workspace_built_from_templates_reports_exactly_the_authoring_gaps` asserts the template-built workspace reports exactly `{"missing-state"}`. That still holds: all five declared files are missing rather than one, and no `undeclared-state` fires because all five are declared. Do not change that assertion.
 
+A second test in the same file is also coupled to this change and **must** be
+updated: `test_template_workspace_passes_once_the_author_fills_it_in` builds the
+mockup the screen declares and then asserts a clean exit 0. With five states
+declared, the author's work is five mockup files, not one, so that test must
+write all five. Replace its single `SCR-001.html` write with a loop over
+`SCR-001.html`, `SCR-001-empty.html`, `SCR-001-loading.html`,
+`SCR-001-error.html`, `SCR-001-success.html`. Keep the `== 0` assertion — the
+test's premise (author completes their work, workspace passes) is unchanged;
+only the definition of "their work" grew.
+
 - [ ] **Step 7: Run the full suite**
 
 ```bash
@@ -1082,7 +1092,7 @@ When this artifact has been reviewed and approved, add:
 
 ```yaml
 status: approved
-signoff: {by: <agent>, at: <YYYY-MM-DD>}
+signoff: {by: <agent>, date: <YYYY-MM-DD>, gate: <gate1|gate2|gate3>}
 ```
 
 Do not record the reviewed-against hash here — it would duplicate
@@ -1626,7 +1636,7 @@ def cycle_ws(tmp_path, fixtures_root):
         text = path.read_text(encoding="utf-8")
         head, front, body = text.split("---", 2)
         fm = yaml.safe_load(front)
-        fm["signoff"] = {"by": "an-agent", "at": "2026-08-18"}
+        fm["signoff"] = {"by": "an-agent", "date": "2026-08-18"}
         path.write_text(
             "---\n"
             + yaml.safe_dump(fm, sort_keys=False, allow_unicode=True).strip()

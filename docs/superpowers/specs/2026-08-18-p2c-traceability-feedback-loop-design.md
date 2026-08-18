@@ -185,10 +185,10 @@ Point 3 is what makes advisory mode viable. "Report and let the human decide" on
 
 ```yaml
 status: approved
-signoff: {by: lead-ux-designer, at: '2026-08-18'}
+signoff: {by: lead-ux-designer, date: 2026-08-10, gate: gate2}
 ```
 
-The hash is deliberately omitted. It would duplicate `source_hash`, and because sign-off is stripped the moment `source_hash` goes stale, a present `signoff` already means "reviewed against the currently-recorded hashes."
+This is the shape already used by `tests/fixtures/stale-hash/`, introduced by the commit that added sign-off voiding. `by` and `date` are required; `gate` is optional and ties the sign-off to the gate model in `config.json`. The hash is deliberately omitted. It would duplicate `source_hash`, and because sign-off is stripped the moment `source_hash` goes stale, a present `signoff` already means "reviewed against the currently-recorded hashes."
 
 Lifecycle: `draft → in-review → approved` + `signoff` → *(upstream edit)* → `stale`, signoff stripped → `in-review` → `approved` + new `signoff` + updated `source_hash`.
 
