@@ -44,7 +44,9 @@ screen was built. **Every requirement in `traces_to` must have an entry here.**
 A missing entry is not "no staleness" — it is *no staleness detection*, forever:
 `trace.py` compares only what is recorded, so an unrecorded requirement can be
 rewritten from top to bottom and this screen will still report `ok`. `trace.py`
-reports a missing entry as an `unhashed-link` gap and fails the gate.
+reports a missing entry as an `unhashed-link` gap and the run exits 1; the
+checker is advisory and never blocks a phase, but the gap stays on the board
+until the entry is written.
 
 The shipped placeholder `'aaaaaa'` is **deliberately wrong**. Replace it with the
 requirement's current hash, which `trace.py` prints for you: the `unhashed-link`
