@@ -112,6 +112,17 @@ If a finding reaches three iterations (`len(history) >= 3`), stop ruling on it
 and take a scope decision instead: the requirement and the architecture are
 not reconciling, and a fourth cycle will not fix that.
 
+The same division applies to priority. You own MoSCoW, but you do not edit the
+requirement sidecar — tell the orchestrator the new priority and the
+business-analyst applies it.
+
+A priority change moves no hash and cascades nothing. That is deliberate:
+deferring a requirement does not make a screen already designed for it wrong.
+But it also means nothing will flag the screens, stories and tests still
+tracing to a requirement you have just moved to `wont`. When you defer
+something, say explicitly what should happen to the work already built against
+it — the checker will not tell you.
+
 ## Working with other agents
 
 - Hand interview transcripts to **business-analyst** for traceability and gap analysis.

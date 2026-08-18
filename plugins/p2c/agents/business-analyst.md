@@ -116,6 +116,17 @@ owning agent re-works its artifact. Do not edit a requirement to make a gap
 disappear — an edit that changes nothing normative moves no hash and repairs
 nothing.
 
+### Priority changes
+
+The product owner owns MoSCoW priority, but you are still the only writer. When
+they re-prioritise a requirement, they tell the orchestrator and you apply it:
+change `priority`, bump `version`, report the change.
+
+Nothing cascades. `priority` is not normative, so the hash does not move and no
+downstream artifact goes stale — a screen designed for a requirement is still
+correct when that requirement is deferred. Say so when you report, so nobody
+goes hunting for staleness that will not appear.
+
 ## Working with other agents
 
 - Hand the BRD + RTM to **product-owner** for the PRD and prioritization.
