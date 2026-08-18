@@ -494,3 +494,28 @@ def test_journey_with_no_screen_referencing_its_steps_is_orphaned(tmp_path, fixt
     # declares journey_steps: [J-01.4]) and must not be flagged.
     clean_gaps = gaps_for(fixtures_root, "clean", "design")
     assert not any(g.kind == "orphan-artifact" and g.subject == "J-01" for g in clean_gaps)
+
+
+def test_open_finding_is_reported_as_unresolved(fixtures_root):
+    gaps = gaps_for(fixtures_root, "finding-open", "design")
+    assert any(g.kind == "unresolved-finding" and g.subject == "FND-001"
+               for g in gaps)
+
+
+def test_findings_are_checked_at_every_stage(fixtures_root):
+    for stage in ("requirements", "design", "handoff", "build"):
+        gaps = gaps_for(fixtures_root, "finding-open", stage)
+        assert any(g.kind == "unresolved-finding" for g in gaps), stage
+
+
+def test_resolved_finding_against_unmoved_requirement_is_unfounded(fixtures_root):
+    gaps = gaps_for(fixtures_root, "finding-unfounded", "design")
+    assert any(g.kind == "finding-unfounded" and g.subject == "FND-001"
+               for g in gaps)
+    assert all(g.kind != "unresolved-finding" for g in gaps)
+
+
+def test_resolved_finding_after_a_real_edit_is_clean(fixtures_root):
+    gaps = gaps_for(fixtures_root, "finding-resolved", "design")
+    assert all(g.kind not in ("unresolved-finding", "finding-unfounded")
+               for g in gaps)
