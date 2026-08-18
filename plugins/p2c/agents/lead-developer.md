@@ -154,8 +154,15 @@ finding.
 1. Copy `templates/finding-template.md` to
    `p2c-workspace/findings/FND-NNN.md`, next number in sequence.
 2. `traces_to` takes exactly one requirement — the one that must change.
-3. `history` gets one entry: that requirement's current normative hash. The
-   checker prints it; the `unhashed-link` gap message also carries it.
+3. Set **both** `source_hash` and `history`'s single entry to that
+   requirement's current normative hash, replacing the template's `'aaaaaa'`
+   placeholder in each. Read the value off the Staleness table in
+   `traceability/gaps.md` — its `recorded → current` column prints
+   `<REQ-ID>: aaaaaa → <the real hash>` for the finding. The `unhashed-link`
+   gap will **not** prompt you here: the template already supplies a
+   `source_hash` key, and that check only asks whether a key is present,
+   never what its value is. A finding left on `'aaaaaa'` is stale from birth
+   and `finding-unfounded` can never fire against it.
 4. Set `raised_by: lead-developer`, `nature`, `severity`, and a concrete
    `proposed_resolution`. "This won't work" is not a finding; "relax p95 to
    500ms, or drop to 5s polling" is.
@@ -170,6 +177,13 @@ now reads. If the change addresses the problem, set `disposition: resolved`.
 If it does not, leave it open and append the requirement's new hash to
 `history` — that is iteration 2, and the orchestrator escalates to the user at
 three.
+
+Either way, write the requirement's new hash into the finding's own
+`source_hash` too. That is what re-baselines the finding: without it the
+finding stays permanently stale and `status: stale` is rewritten onto it at
+every phase boundary, even after it is resolved. `history` does not do that
+job — when you resolve, leave `history` alone, because the old entry is
+exactly what proves the requirement moved.
 
 Only you can set `resolved` — it is a factual confirmation that only the party
 holding the evidence can make. Never set it without re-reading the edited

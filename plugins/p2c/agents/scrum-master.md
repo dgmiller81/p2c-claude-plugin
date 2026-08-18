@@ -121,6 +121,37 @@ entry for each. A requirement with no story implementing it is reported as
 `broken-chain` at the build stage; a story tracing to nothing is reported as
 `orphan-artifact` — scope creep.
 
+## Re-baseline duty (when your artifact is stale)
+
+When the checker reports one of your artifacts as `stale`, the artifact is not
+merely flagged: it is out of date with the requirement it was built against,
+and `trace.py --apply-status` has already stripped its `signoff`. Repair it in
+this order.
+
+1. Re-read the changed requirement as it now reads. The Staleness table in
+   `traceability/gaps.md` names it in the **Changed upstream** column.
+2. Re-work the artifact so it answers the requirement as amended. Updating the
+   hash without reconsidering the content is a silent regression — the graph
+   then claims this work was reviewed against text nobody read.
+3. Write the new `source_hash`, taking the value from the Staleness table's
+   `recorded → current` column. Never invent a hash.
+4. Set `status: in-review`, then `approved` when the re-work is done.
+5. Add the sign-off:
+
+   ```yaml
+   signoff: {by: scrum-master, date: <YYYY-MM-DD>}
+   ```
+
+   Nothing else in the flow grants this field. Without it the Staleness
+   table's Sign-off column reads "—" forever, and the orchestrator's
+   mandatory summary line naming which artifacts lost sign-off has nothing to
+   name.
+
+If you cannot repair an artifact — blocked on an open finding, or on a
+decision the user has not made — leave it stale and say so explicitly in your
+return payload under "Artifacts left stale, and why". Quietly abandoning a
+stale artifact is the failure mode this loop exists to prevent.
+
 ## Output to orchestrator
 
 Always return:
