@@ -142,7 +142,7 @@ def write_rtm(
     lines.append(
         "Status legend (worst wins): `STALE` = flagged by the staleness "
         "detector; `CHALLENGED` = an open or accepted finding disputes this "
-        "requirement, so it may still be rewritten -- see the Findings table "
+        "requirement, so it may still be rewritten — see the Findings table "
         "below; `GAP` = flagged by the gap detector; `unverified` = nothing "
         "downstream traces to this requirement; `ok` = has a downstream chain "
         "and was not flagged."
