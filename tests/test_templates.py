@@ -129,10 +129,17 @@ def test_template_workspace_passes_once_the_author_fills_it_in(tmp_path):
     ws = tmp_path / "ws"
     _fill_templates(ws)
 
-    # 1. Build the mockup the screen declares.
-    (ws / "03-design" / "mockups" / "SCR-001.html").write_text(
-        "<html><body>Example screen</body></html>", encoding="utf-8"
-    )
+    # 1. Build the mockups the screen declares -- all five canonical states.
+    for name in (
+        "SCR-001.html",
+        "SCR-001-empty.html",
+        "SCR-001-loading.html",
+        "SCR-001-error.html",
+        "SCR-001-success.html",
+    ):
+        (ws / "03-design" / "mockups" / name).write_text(
+            "<html><body>Example screen</body></html>", encoding="utf-8"
+        )
 
     # 2. Replace the deliberately-wrong placeholder with the real hash --
     #    exactly the value trace.py's unhashed-link/staleness report prints.

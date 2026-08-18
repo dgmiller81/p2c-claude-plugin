@@ -8,6 +8,10 @@ journey_steps: [{{STEP_ID}}]
 mockup: {{ID}}.html
 states:
   default: {{ID}}.html
+  empty: {{ID}}-empty.html
+  loading: {{ID}}-loading.html
+  error: {{ID}}-error.html
+  success: {{ID}}-success.html
 terminal: false
 source_hash: {{{REQ_ID}}: 'aaaaaa'}
 status: draft

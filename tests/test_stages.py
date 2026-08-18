@@ -519,3 +519,18 @@ def test_resolved_finding_after_a_real_edit_is_clean(fixtures_root):
     gaps = gaps_for(fixtures_root, "finding-resolved", "design")
     assert all(g.kind not in ("unresolved-finding", "finding-unfounded")
                for g in gaps)
+
+
+def test_screen_missing_canonical_states_is_reported(fixtures_root):
+    # The undeclared-state fixture declares only default and error.
+    gaps = gaps_for(fixtures_root, "undeclared-state", "design")
+    undeclared = [g for g in gaps if g.kind == "undeclared-state"]
+    assert len(undeclared) == 1
+    assert undeclared[0].subject == "SCR-004"
+    for missing in ("empty", "loading", "success"):
+        assert missing in undeclared[0].message
+
+
+def test_clean_fixture_declares_all_canonical_states(fixtures_root):
+    gaps = gaps_for(fixtures_root, "clean", "design")
+    assert all(g.kind != "undeclared-state" for g in gaps)

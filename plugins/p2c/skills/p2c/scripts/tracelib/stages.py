@@ -11,6 +11,13 @@ STAGES: tuple[str, ...] = ("requirements", "design", "handoff", "build")
 
 _MOCKUP_DIR = Path("03-design") / "mockups"
 
+# The five states Absolute Rule 2 requires of every key screen. Reported,
+# never blocked: some screens legitimately have no empty state, so this is a
+# prompt to justify the omission rather than a hard requirement.
+REQUIRED_STATES: frozenset[str] = frozenset(
+    {"default", "empty", "loading", "error", "success"}
+)
+
 
 def _stage_index(stage: str) -> int:
     if stage not in STAGES:
@@ -163,6 +170,18 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
                 )
             )
             continue
+
+        undeclared = sorted(REQUIRED_STATES - set(states))
+        if undeclared:
+            gaps.append(
+                Gap(
+                    "undeclared-state",
+                    screen.id,
+                    "declares no " + ", ".join(undeclared) + " state; Absolute "
+                    "Rule 2 expects default, empty, loading, error and success",
+                )
+            )
+
         for state_name, filename in sorted(states.items()):
             filename_str = str(filename)
             # `root / _MOCKUP_DIR / candidate` silently discards `root` when
