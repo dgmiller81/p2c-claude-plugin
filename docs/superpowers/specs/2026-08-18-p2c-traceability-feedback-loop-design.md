@@ -228,7 +228,7 @@ Raiser agents additionally receive the finding-filing protocol (§5). The BA rec
 
 `schema.py:REQUIRED_BY_TYPE` already requires `states` on every screen, and `_check_design_stage` (`stages.py:166-190`) resolves each declared state file against `03-design/mockups/`, reporting `missing-state` when it is absent. It also rejects absolute paths and `..` traversal before touching the filesystem (`_is_unsafe_state_path`).
 
-Absolute Rule 2 of the plugin — mockups covering default, empty, loading, error and success for every key screen — currently exists only as prose in `references/visual-standards.md`, enforced by an agent remembering to care. With screen sidecars it becomes:
+Absolute Rule 3 of the plugin — mockups with working empty/loading/error/success states for every key screen (Rule 2 requires only that mockups exist) — currently exists only as prose in `references/visual-standards.md`, enforced by an agent remembering to care. With screen sidecars it becomes:
 
 ```yaml
 states: {default: SCR-004.html, empty: SCR-004-empty.html,
