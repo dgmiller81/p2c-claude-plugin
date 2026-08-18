@@ -9,6 +9,10 @@ from tracelib.graph import Graph
 
 _NEWLINE_RE = re.compile(r"[\r\n]+")
 
+# Iterations after which a finding stops being a normal loop and becomes a
+# decision the human has to force. See spec section 5.4.
+ESCALATION_THRESHOLD = 3
+
 
 def _cell(value: object) -> str:
     """Stringify a value for safe interpolation into a Markdown table cell.
@@ -151,6 +155,17 @@ def write_index(
             }
             for e in sorted(stale, key=lambda e: e.subject)
         ],
+        "findings": [
+            {
+                "id": sc.id,
+                "challenges": sorted(graph.out.get(sc.id, set())),
+                "nature": sc.frontmatter.get("nature", ""),
+                "severity": sc.frontmatter.get("severity", ""),
+                "disposition": sc.frontmatter.get("disposition", ""),
+                "iterations": len(sc.frontmatter.get("history") or []),
+            }
+            for sc in sorted(graph.by_type("finding"), key=lambda s: s.id)
+        ],
         "summary": {
             "nodes": len(nodes),
             "gaps": len(gaps),
@@ -194,6 +209,46 @@ def _hash_transition_cell(graph: Graph | None, entry: StaleEntry) -> str:
     return ", ".join(parts) if parts else "—"
 
 
+def _findings_section(graph: Graph | None) -> list[str]:
+    """Render the findings table.
+
+    Iterations is len(history) — the number of times this finding has been
+    raised against successive versions of the requirement. At or above
+    ESCALATION_THRESHOLD the loop is not converging and the orchestrator must
+    put the decision back to the user.
+    """
+    if graph is None:
+        return []
+
+    findings = sorted(graph.by_type("finding"), key=lambda s: s.id)
+    if not findings:
+        return ["## Findings", "", "No findings recorded.", ""]
+
+    lines = [
+        "## Findings",
+        "",
+        "| Finding | Challenges | Nature | Severity | Disposition | Iterations | Escalate |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for sc in findings:
+        fm = sc.frontmatter
+        targets = fm.get("traces_to") or []
+        if isinstance(targets, str):
+            targets = [targets]
+        iterations = len(fm.get("history") or [])
+        escalate = "escalate" if iterations >= ESCALATION_THRESHOLD else "—"
+        lines.append(
+            f"| {_cell(sc.id)} | "
+            f"{_cell(', '.join(str(t) for t in targets) or '—')} | "
+            f"{_cell(fm.get('nature', '—'))} | "
+            f"{_cell(fm.get('severity', '—'))} | "
+            f"{_cell(fm.get('disposition', '—'))} | "
+            f"{_cell(iterations)} | {_cell(escalate)} |"
+        )
+    lines.append("")
+    return lines
+
+
 def write_gaps(
     gaps: list[Gap],
     stale: list[StaleEntry],
@@ -230,6 +285,8 @@ def write_gaps(
                 f"{_cell(_hash_transition_cell(graph, entry))} | {_cell(signoff)} |"
             )
         lines.append("")
+
+    lines += _findings_section(graph)
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
 

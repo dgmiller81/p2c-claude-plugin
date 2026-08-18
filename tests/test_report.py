@@ -173,3 +173,39 @@ def test_pipe_in_gap_message_does_not_break_the_table(tmp_path, fixtures_root):
     cells = re.split(r"(?<!\\)\|", row)
     real_cells = [c for c in cells if c.strip() != ""]
     assert len(real_cells) == 3
+
+
+def test_findings_render_in_gaps_md(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    write_all(graph, [], [], tmp_path)
+    gaps_md = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+    assert "## Findings" in gaps_md
+    assert "FND-001" in gaps_md
+    assert "FR-012" in gaps_md
+
+
+def test_findings_recorded_in_index(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    write_all(graph, [], [], tmp_path)
+    data = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+    entry = data["findings"][0]
+    assert entry["id"] == "FND-001"
+    assert entry["challenges"] == ["FR-012"]
+    assert entry["nature"] == "infeasible"
+    assert entry["disposition"] == "open"
+    assert entry["iterations"] == 1
+
+
+def test_no_findings_renders_placeholder(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "clean"))
+    write_all(graph, [], [], tmp_path)
+    gaps_md = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+    assert "No findings recorded." in gaps_md
+
+
+def test_escalation_flag_appears_at_threshold(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    graph.nodes["FND-001"].frontmatter["history"] = ["1076e4", "aaaaaa", "bbbbbb"]
+    write_all(graph, [], [], tmp_path)
+    gaps_md = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+    assert "escalate" in gaps_md.lower()
