@@ -1342,6 +1342,43 @@ and take a scope decision instead: the requirement and the architecture are
 not reconciling, and a fourth cycle will not fix that.
 ````
 
+- [ ] **Step 2b: Connect the priority path in both files**
+
+The product owner owns MoSCoW priority but the business-analyst is the sole
+writer of the sidecar that carries it, so both files must state how a priority
+decision actually reaches the writer. Without this, each agent reads its own
+file at runtime and finds no procedure for the case.
+
+Append to the BA's new "Requirement sidecars" section:
+
+````markdown
+### Priority changes
+
+The product owner owns MoSCoW priority, but you are still the only writer. When
+they re-prioritise a requirement, they tell the orchestrator and you apply it:
+change `priority`, bump `version`, report the change.
+
+Nothing cascades. `priority` is not normative, so the hash does not move and no
+downstream artifact goes stale — a screen designed for a requirement is still
+correct when that requirement is deferred. Say so when you report, so nobody
+goes hunting for staleness that will not appear.
+````
+
+Append to the PO's new "Ruling on findings" section:
+
+````markdown
+The same division applies to priority. You own MoSCoW, but you do not edit the
+requirement sidecar — tell the orchestrator the new priority and the
+business-analyst applies it.
+
+A priority change moves no hash and cascades nothing. That is deliberate:
+deferring a requirement does not make a screen already designed for it wrong.
+But it also means nothing will flag the screens, stories and tests still
+tracing to a requirement you have just moved to `wont`. When you defer
+something, say explicitly what should happen to the work already built against
+it — the checker will not tell you.
+````
+
 - [ ] **Step 3: Add the return-contract bullets to both files**
 
 In each file's "## Output to orchestrator" section, add:
