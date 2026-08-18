@@ -1624,7 +1624,24 @@ git commit -m "docs: add finding-filing protocol and sidecar ownership to agent 
 
 - [ ] **Step 1: Add the ritual reference to the eight command files**
 
-`commands/help.md` is deliberately excluded — it prints the command map and runs no phases. Add to each file's "## Stop conditions" section, or at the end of its entry sequence if it has none:
+`commands/help.md` is deliberately excluded — it prints the command map and runs
+no phases.
+
+Placement is per file, not a judgement call — only two of the eight have a
+`## Stop conditions` section:
+
+| File | Append to |
+|---|---|
+| `full.md` | end of `## Stop conditions` |
+| `poc.md` | end of `## Stop conditions` |
+| `design.md` | end of `## Entry sequence` |
+| `launch.md` | end of `## Entry sequence` |
+| `product.md` | end of `## Entry sequence` |
+| `tech-build.md` | end of `## Entry sequence` |
+| `tech-prod.md` | end of `## Entry sequence` |
+| `tech-scope.md` | end of `## Entry sequence` |
+
+The block to add, identical in all eight:
 
 ```markdown
 - At every phase boundary, run the traceability checker and report its output
