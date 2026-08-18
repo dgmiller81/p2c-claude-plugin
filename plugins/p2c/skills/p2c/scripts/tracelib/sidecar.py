@@ -33,7 +33,13 @@ class Sidecar:
 
 
 def parse_sidecar(path: Path) -> Sidecar:
-    text = path.read_text(encoding="utf-8")
+    # "utf-8-sig" strips a leading BOM if one is present and decodes a
+    # BOM-less file identically to "utf-8". Without it a BOM'd sidecar's
+    # first line reads U+FEFF followed by "---", fails the delimiter
+    # test, and the file is misreported as missing its frontmatter.
+    # _has_frontmatter must use the same codec, or a BOM'd file passes the
+    # probe and then fails here.
+    text = path.read_text(encoding="utf-8-sig")
     lines = text.splitlines()
 
     if not lines or lines[0].rstrip() != DELIMITER:
@@ -70,10 +76,14 @@ def _has_frontmatter(path: Path) -> bool:
     corrupted sidecar remains an error rather than being silently skipped.
 
     Matches parse_sidecar's own comparison (`lines[0].rstrip()`), so a line
-    with leading whitespace is not frontmatter in either place.
+    with leading whitespace is not frontmatter in either place, and matches
+    its codec ("utf-8-sig"), so a BOM'd sidecar is seen as frontmatter here
+    and parses there. A BOM used to make a valid sidecar vanish from the
+    graph silently; findings are graph leaves, so a vanished finding
+    produces no gap and no signal at all.
     """
     try:
-        with path.open(encoding="utf-8") as handle:
+        with path.open(encoding="utf-8-sig") as handle:
             first = handle.readline()
     except (OSError, UnicodeDecodeError):
         return False
