@@ -173,7 +173,7 @@ Three is a judgement call. It is a single constant so it can be tuned.
    - every staleness entry, naming which artifacts lost sign-off
    - the gap list grouped by kind
    - any finding at `len(history) >= 3`, flagged per §5.4
-3. Never write `status: delivered` into `status.json` while `traceability/gaps.md` is non-empty without naming those gaps in the summary. Advancing is permitted — this is advisory — but advancing *quietly* is not.
+3. Never write `status: delivered` into `status.json` while the checker's most recent run reported any gaps or staleness — exit code 1, or a Gaps/Staleness table in `traceability/gaps.md` with rows in it — without naming those gaps in the summary. Note `gaps.md` always exists and is never byte-empty: a clean run writes "No gaps found." into it, so the condition is the exit code or the table contents, never file size. Advancing is permitted — this is advisory — but advancing *quietly* is not.
 
 Phase-to-stage mapping: phase 2 → `requirements`, phase 3 → `design`, phase 4 → `handoff`, phase 5 and later → `build`.
 
