@@ -260,7 +260,7 @@ Add `"FND": "finding"` to `PREFIX_TO_TYPE` and `FND` to the `_THREE_DIGIT` alter
 - `ENUMS["severity"] = ("blocking", "material", "minor")`
 - New `_history_errors`: `history` must be a non-empty list of quoted 6-character lowercase hex strings, reusing `HASH_PATTERN` and the existing unquoted-octal error message.
 - New rule: a finding's `traces_to` must contain exactly one entry.
-- Optional `signoff` validation: when present, must be a mapping carrying `by` and `at`.
+- Optional `signoff` validation: when present, must be a mapping carrying `by` and `date` — the pair named in section 6.1 and used by `tests/fixtures/stale-hash/`. (`at` was a typo in an earlier draft of this section.)
 
 ### `tracelib/graph.py`
 

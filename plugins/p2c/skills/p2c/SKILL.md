@@ -127,6 +127,7 @@ You orchestrate, you don't impersonate. When a phase needs specialist work, disp
 | lead-qa-coordinator | `TC-` |
 | lead-developer | none new — consumes `ARC-`/`SCR-`/`US-`; raises findings |
 | research-marketing | none — prose only |
+| lead-architect, lead-developer, lead-qa-coordinator, lead-ux-designer | `FND-` — whichever of the four raised a finding owns that finding: it sets `source_hash` and `history`, re-baselines both when the requirement is amended, and is the only agent that may set `disposition: resolved` |
 
 Requirement sidecars have exactly one writer because `version` integrity and
 hash stability depend on it. The product owner still owns the PRD as prose and
@@ -226,14 +227,27 @@ stops you **must**:
    python skills/p2c/scripts/trace.py --workspace p2c-workspace --stage <stage> --apply-status
    ```
 
-   Stage mapping: phase 2 → `requirements`, phase 3 → `design`, phase 4 →
-   `handoff`, phase 5 and later → `build`. Always pass `--stage` explicitly.
+   Stage mapping: phases 1 and 2 → `requirements`, phase 3 → `design`,
+   phase 4 → `handoff`, phase 5 and later → `build`. Always pass `--stage`
+   explicitly. Phase 1 is included deliberately: the ritual runs at *every*
+   phase boundary, and `requirements` is the right stage there even though
+   discovery has produced few sidecars yet — it is the only stage whose
+   checks are meaningful before design exists.
 
 2. Include in the phase summary — not optional, not summarised away:
    - open-finding count, with IDs and the requirement each challenges
    - every staleness entry, naming which artifacts lost sign-off
    - the gap list grouped by kind
    - any finding at `len(history) >= 3`, flagged for escalation
+
+   **Read `traceability/gaps.md` to build this — the command's output is not
+   enough.** `trace.py` prints the gaps and the staleness entries to stdout
+   and nothing else. The iteration count and the escalate marker live only in
+   the **Findings** table, which is written into `traceability/gaps.md` and
+   `traceability/rtm.md` (and as the `findings` array in
+   `traceability/index.json`). A summary built from command output alone will
+   silently omit the escalation flag — the one signal in this loop whose whole
+   job is to stop it.
 
 3. Never write `status: delivered` into `status.json` while the checker's
    most recent run reported any gaps or staleness — exit code 1, or a
