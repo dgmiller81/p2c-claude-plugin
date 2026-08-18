@@ -168,3 +168,76 @@ def test_valid_source_hash_passes():
     assert validate(make(fm)) == []
     fm_empty = dict(VALID_SCREEN, source_hash={})
     assert validate(make(fm_empty)) == []
+
+
+VALID_FINDING = {
+    "id": "FND-001",
+    "type": "finding",
+    "title": "Roster sync cannot meet the 200ms p95 budget",
+    "traces_to": ["FR-007"],
+    "source_hash": {"FR-007": "a3f9c1"},
+    "history": ["a3f9c1"],
+    "raised_by": "lead-architect",
+    "nature": "infeasible",
+    "severity": "blocking",
+    "disposition": "open",
+    "status": "draft",
+}
+
+
+def _finding(**overrides):
+    fm = dict(VALID_FINDING)
+    for key, value in overrides.items():
+        if value is None:
+            fm.pop(key, None)
+        else:
+            fm[key] = value
+    return fm
+
+
+def _fields(errors):
+    return {e.field_name for e in errors}
+
+
+def test_valid_finding_has_no_errors():
+    assert validate(make(_finding())) == []
+
+
+def test_finding_missing_disposition_is_an_error():
+    assert "disposition" in _fields(validate(make(_finding(disposition=None))))
+
+
+def test_finding_unknown_disposition_is_an_error():
+    assert "disposition" in _fields(validate(make(_finding(disposition="maybe"))))
+
+
+def test_finding_unknown_nature_is_an_error():
+    assert "nature" in _fields(validate(make(_finding(nature="vibes"))))
+
+
+def test_finding_unquoted_history_entry_is_an_error():
+    errors = validate(make(_finding(history=[0])))
+    assert "history" in _fields(errors)
+    assert any("padding" in e.message for e in errors)
+
+
+def test_finding_empty_history_is_an_error():
+    assert "history" in _fields(validate(make(_finding(history=[]))))
+
+
+def test_finding_with_two_targets_is_an_error():
+    assert "traces_to" in _fields(
+        validate(make(_finding(traces_to=["FR-007", "FR-008"])))
+    )
+
+
+def test_signoff_missing_by_is_an_error():
+    assert "signoff" in _fields(
+        validate(make(_finding(signoff={"date": "2026-08-18"})))
+    )
+
+
+def test_valid_signoff_is_accepted():
+    assert validate(
+        make(_finding(signoff={"by": "lead-architect", "date": "2026-08-18"}))
+    ) == []
