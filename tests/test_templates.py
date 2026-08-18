@@ -38,6 +38,12 @@ SUBSTITUTIONS = {
         "{{ID}}": "ARC-001", "{{TITLE}}": "Example component",
         "{{REQ_ID}}": "FR-001",
     },
+    "finding-template.md": {
+        "{{ID}}": "FND-001", "{{TITLE}}": "Example finding",
+        "{{REQ_ID}}": "FR-001", "{{AGENT}}": "lead-architect",
+        "{{NATURE}}": "infeasible", "{{SEVERITY}}": "blocking",
+        "{{RESOLUTION}}": "relax the budget to 500ms",
+    },
 }
 
 
