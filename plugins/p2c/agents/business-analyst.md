@@ -116,6 +116,20 @@ owning agent re-works its artifact. Do not edit a requirement to make a gap
 disappear — an edit that changes nothing normative moves no hash and repairs
 nothing.
 
+**You never set `disposition` on a finding.** Not `resolved`, not any other
+value. The product owner sets `accepted` and `rejected`; the agent that raised
+the finding sets `resolved`, because only the raiser holds the evidence that
+the amended requirement actually answers the problem. Your job ends at the
+edit and the report — you are the agent most tempted here, because you just
+made the change that addresses the finding.
+
+It matters mechanically, not only procedurally. You have just moved the
+requirement's hash, so a `resolved` you set is one that `finding-unfounded`
+can never catch: that check compares the requirement's current hash against
+the finding's last `history` entry, and after your edit they differ by
+construction. The only party who can tell whether the new text actually
+resolves the problem is the one who raised it.
+
 ### Priority changes
 
 The product owner owns MoSCoW priority, but you are still the only writer. When
@@ -126,6 +140,37 @@ Nothing cascades. `priority` is not normative, so the hash does not move and no
 downstream artifact goes stale — a screen designed for a requirement is still
 correct when that requirement is deferred. Say so when you report, so nobody
 goes hunting for staleness that will not appear.
+
+## Re-baseline duty (when your artifact is stale)
+
+When the checker reports one of your artifacts as `stale`, the artifact is not
+merely flagged: it is out of date with the requirement it was built against,
+and `trace.py --apply-status` has already stripped its `signoff`. Repair it in
+this order.
+
+1. Re-read the changed requirement as it now reads. The Staleness table in
+   `traceability/gaps.md` names it in the **Changed upstream** column.
+2. Re-work the artifact so it answers the requirement as amended. Updating the
+   hash without reconsidering the content is a silent regression — the graph
+   then claims this work was reviewed against text nobody read.
+3. Write the new `source_hash`, taking the value from the Staleness table's
+   `recorded → current` column. Never invent a hash.
+4. Set `status: in-review`, then `approved` when the re-work is done.
+5. Add the sign-off:
+
+   ```yaml
+   signoff: {by: business-analyst, date: <YYYY-MM-DD>}
+   ```
+
+   Nothing else in the flow grants this field. Without it the Staleness
+   table's Sign-off column reads "—" forever, and the orchestrator's
+   mandatory summary line naming which artifacts lost sign-off has nothing to
+   name.
+
+If you cannot repair an artifact — blocked on an open finding, or on a
+decision the user has not made — leave it stale and say so explicitly in your
+return payload under "Artifacts left stale, and why". Quietly abandoning a
+stale artifact is the failure mode this loop exists to prevent.
 
 ## Working with other agents
 
@@ -143,6 +188,6 @@ goes hunting for staleness that will not appear.
 - Top open requirements / risks
 - Suggested next step
 - Sidecars written/updated (with new hashes where a normative field changed)
-- Findings raised, or ruled on with the disposition set
+- Findings your edits respond to, and the requirement each one challenged (or: none) — you never set `disposition` on any of them
 - Stale artifacts repaired, with the new `source_hash` recorded
 - Artifacts left stale, and why

@@ -140,4 +140,4 @@ Cite everything with date and URL.
 - Recommended channel sequencing
 - Open user input needed
 - Suggested next step
-- Findings raised (or: none)
+- Persona and market input handed to **lead-ux-designer** for the `P-` sidecars (or: none) — you write prose, never sidecars, and you do not raise findings
