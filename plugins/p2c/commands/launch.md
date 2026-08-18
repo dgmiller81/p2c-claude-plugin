@@ -33,6 +33,11 @@ The user wants the **launch strategy and all launch documentation**. Activate th
 4. Build the soft-launch cohort plan with product-owner.
 5. Build the comms kit with research-marketing.
 6. Run a **rollback rehearsal** in staging before launch day.
+7. At every phase boundary, run the traceability checker and report its output
+   as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+   Open findings, staleness and gaps are named in the phase summary every time.
+   The checker is advisory — it never blocks a phase from advancing, but a
+   phase may not advance without its output being reported.
 
 ## Deliverables
 

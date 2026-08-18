@@ -27,6 +27,11 @@ Do **not** dispatch lead-architect, lead-developer, lead-qa-coordinator, or scru
 2. Ingest existing context (`$ARGUMENTS`, README, docs/).
 3. Offer the visual server with the discovery / story-map / journey views enabled.
 4. Run phases 1, 2, then the phase-8 framework definition.
+5. At every phase boundary, run the traceability checker and report its output
+   as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+   Open findings, staleness and gaps are named in the phase summary every time.
+   The checker is advisory — it never blocks a phase from advancing, but a
+   phase may not advance without its output being reported.
 
 ## Final output
 

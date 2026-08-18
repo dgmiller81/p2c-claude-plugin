@@ -47,6 +47,11 @@ These are inherited from `SKILL.md` and `references/visual-standards.md` — rep
    6. **Lock the design system** (tokens + components)
    7. **Accessibility pass** + responsive states + per-screen states (empty / loading / error / success)
 6. Get explicit user sign-off on the mockups. Do not mark phase 3 `delivered` without it.
+7. At every phase boundary, run the traceability checker and report its output
+   as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+   Open findings, staleness and gaps are named in the phase summary every time.
+   The checker is advisory — it never blocks a phase from advancing, but a
+   phase may not advance without its output being reported.
 
 ## Deliverables
 

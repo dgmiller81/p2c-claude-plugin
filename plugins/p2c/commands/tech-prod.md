@@ -37,6 +37,11 @@ If a POC exists, the prod plan should explicitly close every gap in the gap doc 
 3. Confirm budget envelope (informs hosting tier and tooling choices).
 4. Run sprint cadence — scrum-master drives, you orchestrate stop/start between sprints.
 5. Run the **launch-readiness checklist** from `references/07-launch.md` before declaring ready.
+6. At every phase boundary, run the traceability checker and report its output
+   as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+   Open findings, staleness and gaps are named in the phase summary every time.
+   The checker is advisory — it never blocks a phase from advancing, but a
+   phase may not advance without its output being reported.
 
 ## Deliverables
 

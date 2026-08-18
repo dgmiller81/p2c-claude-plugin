@@ -34,6 +34,11 @@ If any are missing, capture a quick version with the user before architecting.
 2. Read PRD, story map, NFRs.
 3. Offer the visual server with the architecture diagram and cost-estimate views.
 4. Run the 7-phase architecture workflow + a planning pass.
+5. At every phase boundary, run the traceability checker and report its output
+   as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+   Open findings, staleness and gaps are named in the phase summary every time.
+   The checker is advisory — it never blocks a phase from advancing, but a
+   phase may not advance without its output being reported.
 
 ## Cost-estimate output
 
