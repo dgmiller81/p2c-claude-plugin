@@ -1538,6 +1538,47 @@ entry for each. A requirement with no story implementing it is reported as
 `orphan-artifact` — scope creep.
 ````
 
+- [ ] **Step 2c: Disambiguate the two escalation paths in lead-developer.md**
+
+`lead-developer.md` already instructs the agent to "open feasibility issues back
+to the UX designer if a mockup state is impractical to build... Don't silently
+reinterpret — flag and ask." The new finding-filing section triggers on
+overlapping conditions and opens with near-identical language, and its own
+example (a motion the framework cannot deliver) sits inside both definitions.
+The two paths have very different consequences: asking the designer is an
+informal, untracked conversation, while a finding is a traceable artifact routed
+through the product owner. Left undisambiguated, an agent can resolve a
+genuinely infeasible requirement informally and never file a finding — silently
+defeating the loop for the exact class of issue it exists to catch.
+
+Append to the end of the new "Filing a feasibility finding" section in
+`lead-developer.md`:
+
+````markdown
+**Which path: this one, or asking the UX designer?** The design-handoff section
+above tells you to open impractical mockup states back to the UX designer. That
+is right when the problem is *how* the screen is built — a motion the framework
+cannot deliver, a layout needing a different component. File a finding instead
+when the problem is *what the requirement demands*: if no implementation could
+satisfy the requirement as written, the requirement is what has to change, and
+only a finding routes that to the product owner. When a mockup impracticality
+turns out to trace back to the requirement itself, file the finding — a fix
+agreed informally with the designer leaves the requirement still saying
+something nobody can build.
+````
+
+And extend the pre-existing design-handoff step 5 with a pointer, so the reader
+who starts there also learns the distinction:
+
+````markdown
+5. Open feasibility issues back to the UX designer if a mockup state is
+   impractical to build (e.g., a custom motion that the chosen framework can't
+   deliver). Don't silently reinterpret — flag and ask. If the impracticality
+   traces back to what the requirement itself demands rather than to an
+   implementation choice, file a finding instead — see *Filing a feasibility
+   finding* below.
+````
+
 - [ ] **Step 3: Add the return-contract bullets**
 
 To the "## Output to orchestrator" section of the five sidecar-owning files in this task:
