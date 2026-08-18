@@ -11,7 +11,7 @@ STAGES: tuple[str, ...] = ("requirements", "design", "handoff", "build")
 
 _MOCKUP_DIR = Path("03-design") / "mockups"
 
-# The five states Absolute Rule 2 requires of every key screen. Reported,
+# The five states Absolute Rule 3 requires of every key screen. Reported,
 # never blocked: some screens legitimately have no empty state, so this is a
 # prompt to justify the omission rather than a hard requirement.
 REQUIRED_STATES: frozenset[str] = frozenset(
@@ -178,7 +178,7 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
                     "undeclared-state",
                     screen.id,
                     "declares no " + ", ".join(undeclared) + " state; Absolute "
-                    "Rule 2 expects default, empty, loading, error and success",
+                    "Rule 3 expects default, empty, loading, error and success",
                 )
             )
 

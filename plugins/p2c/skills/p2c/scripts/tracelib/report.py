@@ -27,14 +27,51 @@ def _cell(value: object) -> str:
     return text
 
 
+# Dispositions that mean the challenge to a requirement is still live.
+# `resolved` and `rejected` are both closed: the requirement has already
+# been amended, or it stands as written.
+OPEN_DISPOSITIONS = frozenset({"open", "accepted"})
+
+
+def _challenged_requirements(graph: Graph) -> set[str]:
+    """Requirement ids with a live finding against them.
+
+    The `unresolved-finding` gap's subject is the FINDING's id, not the
+    requirement's, so a challenged requirement never lands in
+    `gap_subjects` and its RTM row would otherwise read `ok` while its
+    feasibility is actively disputed.
+    """
+    challenged: set[str] = set()
+    for finding in graph.by_type("finding"):
+        if finding.frontmatter.get("disposition") not in OPEN_DISPOSITIONS:
+            continue
+        targets = finding.frontmatter.get("traces_to") or []
+        if isinstance(targets, str):
+            targets = [targets]
+        for target in targets:
+            node = graph.nodes.get(str(target))
+            if node is not None and node.type == "requirement":
+                challenged.add(str(target))
+    return challenged
+
+
 def _status_for(
     req_id: str,
     chain: dict[str, list[str]],
     gap_subjects: set[str],
     stale_subjects: set[str],
+    challenged: frozenset[str] | set[str] = frozenset(),
 ) -> str:
+    """Worst-first: STALE > CHALLENGED > GAP > unverified > ok.
+
+    CHALLENGED outranks GAP because a requirement under a live finding may
+    still be rewritten: closing its downstream gaps before the product
+    owner rules on the finding is work that may have to be redone.
+    """
     if req_id in stale_subjects:
         return "STALE"
+    if req_id in challenged:
+        return "CHALLENGED"
     if req_id in gap_subjects:
         return "GAP"
     if not any(chain.values()):
@@ -72,6 +109,7 @@ def write_rtm(
 ) -> None:
     stale_subjects = {e.subject for e in stale}
     gap_subjects = {g.subject for g in gaps}
+    challenged = _challenged_requirements(graph)
 
     lines = [
         "# Requirements Traceability Matrix",
@@ -82,7 +120,9 @@ def write_rtm(
 
     for req in sorted(graph.by_type("requirement"), key=lambda s: s.id):
         chain = _chain_for(graph, req.id)
-        status = _status_for(req.id, chain, gap_subjects, stale_subjects)
+        status = _status_for(
+            req.id, chain, gap_subjects, stale_subjects, challenged
+        )
         lines.append(
             "| {id} | {kind} | {surface} | {p} | {j} | {s} | {c} | {u} | {t} | {st} |".format(
                 id=_cell(req.id),
@@ -100,11 +140,15 @@ def write_rtm(
 
     lines.append("")
     lines.append(
-        "Status legend: `ok` = has a downstream chain and was not flagged; "
-        "`unverified` = nothing downstream traces to this requirement; "
-        "`GAP` = flagged by the gap detector; `STALE` = flagged by the staleness detector."
+        "Status legend (worst wins): `STALE` = flagged by the staleness "
+        "detector; `CHALLENGED` = an open or accepted finding disputes this "
+        "requirement, so it may still be rewritten -- see the Findings table "
+        "below; `GAP` = flagged by the gap detector; `unverified` = nothing "
+        "downstream traces to this requirement; `ok` = has a downstream chain "
+        "and was not flagged."
     )
     lines.append("")
+    lines += _findings_section(graph)
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
