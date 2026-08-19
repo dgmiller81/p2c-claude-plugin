@@ -9,6 +9,10 @@ from tracelib.graph import Graph
 
 _NEWLINE_RE = re.compile(r"[\r\n]+")
 
+# Iterations after which a finding stops being a normal loop and becomes a
+# decision the human has to force. See spec section 5.4.
+ESCALATION_THRESHOLD = 3
+
 
 def _cell(value: object) -> str:
     """Stringify a value for safe interpolation into a Markdown table cell.
@@ -23,14 +27,51 @@ def _cell(value: object) -> str:
     return text
 
 
+# Dispositions that mean the challenge to a requirement is still live.
+# `resolved` and `rejected` are both closed: the requirement has already
+# been amended, or it stands as written.
+OPEN_DISPOSITIONS = frozenset({"open", "accepted"})
+
+
+def _challenged_requirements(graph: Graph) -> set[str]:
+    """Requirement ids with a live finding against them.
+
+    The `unresolved-finding` gap's subject is the FINDING's id, not the
+    requirement's, so a challenged requirement never lands in
+    `gap_subjects` and its RTM row would otherwise read `ok` while its
+    feasibility is actively disputed.
+    """
+    challenged: set[str] = set()
+    for finding in graph.by_type("finding"):
+        if finding.frontmatter.get("disposition") not in OPEN_DISPOSITIONS:
+            continue
+        targets = finding.frontmatter.get("traces_to") or []
+        if isinstance(targets, str):
+            targets = [targets]
+        for target in targets:
+            node = graph.nodes.get(str(target))
+            if node is not None and node.type == "requirement":
+                challenged.add(str(target))
+    return challenged
+
+
 def _status_for(
     req_id: str,
     chain: dict[str, list[str]],
     gap_subjects: set[str],
     stale_subjects: set[str],
+    challenged: frozenset[str] | set[str] = frozenset(),
 ) -> str:
+    """Worst-first: STALE > CHALLENGED > GAP > unverified > ok.
+
+    CHALLENGED outranks GAP because a requirement under a live finding may
+    still be rewritten: closing its downstream gaps before the product
+    owner rules on the finding is work that may have to be redone.
+    """
     if req_id in stale_subjects:
         return "STALE"
+    if req_id in challenged:
+        return "CHALLENGED"
     if req_id in gap_subjects:
         return "GAP"
     if not any(chain.values()):
@@ -68,6 +109,7 @@ def write_rtm(
 ) -> None:
     stale_subjects = {e.subject for e in stale}
     gap_subjects = {g.subject for g in gaps}
+    challenged = _challenged_requirements(graph)
 
     lines = [
         "# Requirements Traceability Matrix",
@@ -78,7 +120,9 @@ def write_rtm(
 
     for req in sorted(graph.by_type("requirement"), key=lambda s: s.id):
         chain = _chain_for(graph, req.id)
-        status = _status_for(req.id, chain, gap_subjects, stale_subjects)
+        status = _status_for(
+            req.id, chain, gap_subjects, stale_subjects, challenged
+        )
         lines.append(
             "| {id} | {kind} | {surface} | {p} | {j} | {s} | {c} | {u} | {t} | {st} |".format(
                 id=_cell(req.id),
@@ -96,11 +140,15 @@ def write_rtm(
 
     lines.append("")
     lines.append(
-        "Status legend: `ok` = has a downstream chain and was not flagged; "
-        "`unverified` = nothing downstream traces to this requirement; "
-        "`GAP` = flagged by the gap detector; `STALE` = flagged by the staleness detector."
+        "Status legend (worst wins): `STALE` = flagged by the staleness "
+        "detector; `CHALLENGED` = an open or accepted finding disputes this "
+        "requirement, so it may still be rewritten — see the Findings table "
+        "below; `GAP` = flagged by the gap detector; `unverified` = nothing "
+        "downstream traces to this requirement; `ok` = has a downstream chain "
+        "and was not flagged."
     )
     lines.append("")
+    lines += _findings_section(graph)
     out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -151,6 +199,17 @@ def write_index(
             }
             for e in sorted(stale, key=lambda e: e.subject)
         ],
+        "findings": [
+            {
+                "id": sc.id,
+                "challenges": sorted(graph.out.get(sc.id, set())),
+                "nature": sc.frontmatter.get("nature", ""),
+                "severity": sc.frontmatter.get("severity", ""),
+                "disposition": sc.frontmatter.get("disposition", ""),
+                "iterations": len(sc.frontmatter.get("history") or []),
+            }
+            for sc in sorted(graph.by_type("finding"), key=lambda s: s.id)
+        ],
         "summary": {
             "nodes": len(nodes),
             "gaps": len(gaps),
@@ -194,6 +253,46 @@ def _hash_transition_cell(graph: Graph | None, entry: StaleEntry) -> str:
     return ", ".join(parts) if parts else "—"
 
 
+def _findings_section(graph: Graph | None) -> list[str]:
+    """Render the findings table.
+
+    Iterations is len(history) — the number of times this finding has been
+    raised against successive versions of the requirement. At or above
+    ESCALATION_THRESHOLD the loop is not converging and the orchestrator must
+    put the decision back to the user.
+    """
+    if graph is None:
+        return []
+
+    findings = sorted(graph.by_type("finding"), key=lambda s: s.id)
+    if not findings:
+        return ["## Findings", "", "No findings recorded.", ""]
+
+    lines = [
+        "## Findings",
+        "",
+        "| Finding | Challenges | Nature | Severity | Disposition | Iterations | Escalate |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for sc in findings:
+        fm = sc.frontmatter
+        targets = fm.get("traces_to") or []
+        if isinstance(targets, str):
+            targets = [targets]
+        iterations = len(fm.get("history") or [])
+        escalate = "escalate" if iterations >= ESCALATION_THRESHOLD else "—"
+        lines.append(
+            f"| {_cell(sc.id)} | "
+            f"{_cell(', '.join(str(t) for t in targets) or '—')} | "
+            f"{_cell(fm.get('nature', '—'))} | "
+            f"{_cell(fm.get('severity', '—'))} | "
+            f"{_cell(fm.get('disposition', '—'))} | "
+            f"{_cell(iterations)} | {_cell(escalate)} |"
+        )
+    lines.append("")
+    return lines
+
+
 def write_gaps(
     gaps: list[Gap],
     stale: list[StaleEntry],
@@ -230,6 +329,8 @@ def write_gaps(
                 f"{_cell(_hash_transition_cell(graph, entry))} | {_cell(signoff)} |"
             )
         lines.append("")
+
+    lines += _findings_section(graph)
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
 

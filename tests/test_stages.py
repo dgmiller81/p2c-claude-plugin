@@ -494,3 +494,43 @@ def test_journey_with_no_screen_referencing_its_steps_is_orphaned(tmp_path, fixt
     # declares journey_steps: [J-01.4]) and must not be flagged.
     clean_gaps = gaps_for(fixtures_root, "clean", "design")
     assert not any(g.kind == "orphan-artifact" and g.subject == "J-01" for g in clean_gaps)
+
+
+def test_open_finding_is_reported_as_unresolved(fixtures_root):
+    gaps = gaps_for(fixtures_root, "finding-open", "design")
+    assert any(g.kind == "unresolved-finding" and g.subject == "FND-001"
+               for g in gaps)
+
+
+def test_findings_are_checked_at_every_stage(fixtures_root):
+    for stage in ("requirements", "design", "handoff", "build"):
+        gaps = gaps_for(fixtures_root, "finding-open", stage)
+        assert any(g.kind == "unresolved-finding" for g in gaps), stage
+
+
+def test_resolved_finding_against_unmoved_requirement_is_unfounded(fixtures_root):
+    gaps = gaps_for(fixtures_root, "finding-unfounded", "design")
+    assert any(g.kind == "finding-unfounded" and g.subject == "FND-001"
+               for g in gaps)
+    assert all(g.kind != "unresolved-finding" for g in gaps)
+
+
+def test_resolved_finding_after_a_real_edit_is_clean(fixtures_root):
+    gaps = gaps_for(fixtures_root, "finding-resolved", "design")
+    assert all(g.kind not in ("unresolved-finding", "finding-unfounded")
+               for g in gaps)
+
+
+def test_screen_missing_canonical_states_is_reported(fixtures_root):
+    # The undeclared-state fixture declares only default and error.
+    gaps = gaps_for(fixtures_root, "undeclared-state", "design")
+    undeclared = [g for g in gaps if g.kind == "undeclared-state"]
+    assert len(undeclared) == 1
+    assert undeclared[0].subject == "SCR-004"
+    for missing in ("empty", "loading", "success"):
+        assert missing in undeclared[0].message
+
+
+def test_clean_fixture_declares_all_canonical_states(fixtures_root):
+    gaps = gaps_for(fixtures_root, "clean", "design")
+    assert all(g.kind != "undeclared-state" for g in gaps)

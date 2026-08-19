@@ -125,3 +125,21 @@ In `status.json`, phase 3 is **never** marked `delivered` unless `files` contain
 3. Explicitly skip with reason recorded in `status.json` (rare, requires user confirmation).
 
 This is intentionally a hard gate. Building before visuals exist is how teams ship products that look like prototypes.
+
+This rule is also checked mechanically. Screen sidecars declare their states:
+
+```yaml
+states:
+  default: SCR-004.html
+  empty: SCR-004-empty.html
+  loading: SCR-004-loading.html
+  error: SCR-004-error.html
+  success: SCR-004-success.html
+```
+
+`trace.py` resolves each declared file against `03-design/mockups/` and
+reports `missing-state` when a declared file is absent, and
+`undeclared-state` when a screen does not declare all five canonical states.
+Both are advisory: they report, they do not block. The prose gate above
+remains the binding rule — the checks exist so a gap is visible immediately
+rather than in phase 5.

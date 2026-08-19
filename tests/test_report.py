@@ -173,3 +173,111 @@ def test_pipe_in_gap_message_does_not_break_the_table(tmp_path, fixtures_root):
     cells = re.split(r"(?<!\\)\|", row)
     real_cells = [c for c in cells if c.strip() != ""]
     assert len(real_cells) == 3
+
+
+def test_findings_render_in_gaps_md(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    write_all(graph, [], [], tmp_path)
+    gaps_md = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+    assert "## Findings" in gaps_md
+    assert "FND-001" in gaps_md
+    assert "FR-012" in gaps_md
+
+
+def test_findings_recorded_in_index(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    write_all(graph, [], [], tmp_path)
+    data = json.loads((tmp_path / "index.json").read_text(encoding="utf-8"))
+    entry = data["findings"][0]
+    assert entry["id"] == "FND-001"
+    assert entry["challenges"] == ["FR-012"]
+    assert entry["nature"] == "infeasible"
+    assert entry["disposition"] == "open"
+    assert entry["iterations"] == 1
+
+
+def test_no_findings_renders_placeholder(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "clean"))
+    write_all(graph, [], [], tmp_path)
+    gaps_md = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+    assert "No findings recorded." in gaps_md
+
+
+def test_escalation_flag_appears_at_threshold(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    graph.nodes["FND-001"].frontmatter["history"] = ["1076e4", "aaaaaa", "bbbbbb"]
+    write_all(graph, [], [], tmp_path)
+    gaps_md = (tmp_path / "gaps.md").read_text(encoding="utf-8")
+    assert "escalate" in gaps_md.lower()
+
+
+def test_findings_render_in_rtm_too(tmp_path, fixtures_root):
+    """Spec 7 asks for the findings table in rtm.md as well as gaps.md."""
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    write_all(graph, [], [], tmp_path)
+    rtm = (tmp_path / "rtm.md").read_text(encoding="utf-8")
+
+    assert "## Findings" in rtm
+    row = next(line for line in rtm.splitlines() if line.startswith("| FND-001"))
+    assert "FR-012" in row
+    assert "infeasible" in row
+    assert "open" in row
+
+
+def test_rtm_findings_placeholder_when_there_are_none(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "clean"))
+    write_all(graph, [], [], tmp_path)
+    assert "No findings recorded." in (tmp_path / "rtm.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_challenged_requirement_is_not_reported_ok(tmp_path, fixtures_root):
+    """An open finding's gap subject is the FND id, not the requirement's,
+    so without the CHALLENGED status this row would read `ok` while the
+    requirement's feasibility is actively disputed.
+    """
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    write_all(graph, [], [], tmp_path)
+    rtm = (tmp_path / "rtm.md").read_text(encoding="utf-8")
+
+    row = next(line for line in rtm.splitlines() if line.startswith("| FR-012 "))
+    assert "CHALLENGED" in row
+    assert "CHALLENGED" in rtm.split("Status legend")[1]
+
+
+def test_resolved_finding_leaves_the_requirement_unchallenged(
+    tmp_path, fixtures_root
+):
+    graph = build_graph(load_workspace(fixtures_root / "finding-resolved"))
+    write_all(graph, [], [], tmp_path)
+    rtm = (tmp_path / "rtm.md").read_text(encoding="utf-8")
+
+    row = next(line for line in rtm.splitlines() if line.startswith("| FR-012 "))
+    assert "CHALLENGED" not in row
+
+
+def test_accepted_finding_also_challenges(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    graph.nodes["FND-001"].frontmatter["disposition"] = "accepted"
+    write_all(graph, [], [], tmp_path)
+    rtm = (tmp_path / "rtm.md").read_text(encoding="utf-8")
+
+    row = next(line for line in rtm.splitlines() if line.startswith("| FR-012 "))
+    assert "CHALLENGED" in row
+
+
+def test_stale_outranks_challenged_which_outranks_gap(tmp_path, fixtures_root):
+    graph = build_graph(load_workspace(fixtures_root / "finding-open"))
+    gaps = [Gap("orphan-requirement", "FR-012", "also a gap")]
+
+    write_all(graph, gaps, [], tmp_path)
+    rtm = (tmp_path / "rtm.md").read_text(encoding="utf-8")
+    row = next(line for line in rtm.splitlines() if line.startswith("| FR-012 "))
+    assert "CHALLENGED" in row and "GAP" not in row
+
+    stale = [StaleEntry("FR-012", "upstream-changed", [], signoff_voided=False)]
+    write_all(graph, gaps, stale, tmp_path)
+    rtm = (tmp_path / "rtm.md").read_text(encoding="utf-8")
+    row = next(line for line in rtm.splitlines() if line.startswith("| FR-012 "))
+    assert "STALE" in row and "CHALLENGED" not in row

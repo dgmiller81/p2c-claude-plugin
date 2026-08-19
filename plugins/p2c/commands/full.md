@@ -42,6 +42,11 @@ Inherited from `SKILL.md` and `references/visual-standards.md` — apply across 
 - Do not silently cross phase boundaries.
 - **Do not advance past phase 3 without mockups.** This is a hard gate.
 - If the user pauses, ensure `status.json` reflects exactly where to resume.
+- At every phase boundary, run the traceability checker and report its output
+  as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+  Open findings, staleness and gaps are named in the phase summary every time.
+  The checker is advisory — it never blocks a phase from advancing, but a
+  phase may not advance without its output being reported.
 
 ## Final output
 

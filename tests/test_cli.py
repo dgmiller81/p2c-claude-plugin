@@ -87,7 +87,7 @@ def test_bad_schema_exits_two(workspace):
 def test_unparseable_sidecar_exits_two(workspace):
     ws = workspace("clean")
     (ws / "02-requirements" / "register" / "FR-013.md").write_text(
-        "no frontmatter", encoding="utf-8"
+        "---\nid: FR-013\ntype: requirement\n", encoding="utf-8"
     )
     assert trace_cli.main(["--workspace", str(ws), "--stage", "requirements"]) == 2
 

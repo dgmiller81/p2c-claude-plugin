@@ -41,6 +41,8 @@ p2c-workspace/
 ├── 06-test-and-harden/      # test plan, OWASP review, perf budgets, a11y notes
 ├── 07-launch/               # readiness checklist, rollback plan, runbook, comms plan
 ├── 08-measure/              # tracking plan, north star, AARRR funnel, weekly cadence doc
+├── findings/                # FND-NNN feasibility findings (sidecars)
+├── traceability/            # generated: rtm.md, index.json, gaps.md — do not hand-edit
 ├── poc/                     # only if /p2c:poc or /p2c:tech-build — actual code
 ├── plan/
 │   ├── sprint-plan.md       # generated sprint breakdown
@@ -113,6 +115,24 @@ You orchestrate, you don't impersonate. When a phase needs specialist work, disp
 | Business requirements, requirements traceability matrix, stakeholder alignment, BRD, gap analysis | `business-analyst` |
 | Market research, competitor scan, GTM strategy, positioning, launch comms, post-launch growth | `research-marketing` |
 
+**Sidecar ownership.** Each agent writes only its own artifact types:
+
+| Agent | Owns |
+|---|---|
+| business-analyst | `BR-`, `FR-`, `NFR-` — **sole writer of requirement sidecars** |
+| product-owner | none — decides disposition and priority; the BA applies the edit |
+| lead-ux-designer | `P-`, `J-`, `SCR-` |
+| lead-architect | `ARC-` |
+| scrum-master | `US-` |
+| lead-qa-coordinator | `TC-` |
+| lead-developer | none new — consumes `ARC-`/`SCR-`/`US-`; raises findings |
+| research-marketing | none — prose only |
+| lead-architect, lead-developer, lead-qa-coordinator, lead-ux-designer | `FND-` — whichever of the four raised a finding owns that finding: it sets `source_hash` and `history`, re-baselines both when the requirement is amended, and is the only agent that may set `disposition: resolved` |
+
+Requirement sidecars have exactly one writer because `version` integrity and
+hash stability depend on it. The product owner still owns the PRD as prose and
+still owns every decision.
+
 **Dispatch pattern (do this every time you delegate):**
 
 > "I'm bringing in the **<role>** agent to handle <specific deliverable>. Here's what I'm asking them: <prompt>. They'll write to `p2c-workspace/<phase>/<file>`. I'll bring the result back to you for review."
@@ -153,6 +173,102 @@ Before each phase, do **5–15 minutes of background research** so you can show 
 - **Code scan** (if code exists) — high-level stack, frameworks, test setup, deployment hints. Inform architecture and stack decisions.
 
 Cite what you found. Format nudges as: "I noticed <fact> from <source>. That suggests <implication> for <decision>. Worth a closer look?"
+
+## Traceability and the feasibility loop
+
+Artifacts in `p2c-workspace/` come in two forms. **Prose** (`prd.md`,
+`jtbd.md`, ADRs, runbooks) is read by humans. **Sidecars** are markdown files
+with YAML frontmatter that form a traceability graph: requirements
+(`BR-`/`FR-`/`NFR-`), personas (`P-`), journeys (`J-`), screens (`SCR-`),
+components (`ARC-`), stories (`US-`), tests (`TC-`) and findings (`FND-`).
+Templates for each live in `templates/`.
+
+Each downstream sidecar records `source_hash` — the hash of each upstream
+requirement as it read when the artifact was authored. When a requirement's
+`statement` or `acceptance_criteria` changes, every artifact tracing to it is
+marked `status: stale` and its `signoff` is stripped. That is how requirements
+and UX artifacts are prevented from silently going out of date.
+
+### When an agent finds something infeasible
+
+Any agent that discovers a requirement cannot be built as written files a
+finding sidecar in `p2c-workspace/findings/` using
+`templates/finding-template.md`. Raiser, decider and editor are three
+different parties:
+
+- **Raiser** (lead-architect, lead-developer, lead-qa-coordinator,
+  lead-ux-designer) writes the finding. They hold the evidence.
+- **You, the orchestrator,** surface it to the user. You never resolve a
+  finding and never edit a requirement.
+- **product-owner** decides: `accepted` (valid, the requirement should
+  change) or `rejected` (the requirement stands, the architecture absorbs
+  the cost).
+- **business-analyst** is the sole writer of requirement sidecars and applies
+  the edit, bumping `version`.
+
+After the edit, everything downstream goes stale and each owning agent
+re-works its artifact. The raiser re-reads the changed requirement and either
+sets `disposition: resolved` or keeps the finding open with a new entry
+appended to `history` — that second entry is iteration 2.
+
+At `len(history) >= 3`, stop looping and escalate to the user: this
+requirement and this architecture have failed to reconcile across three
+revisions, and the next move is a scope change or a constraint change, not
+another cycle.
+
+### The phase-boundary ritual (mandatory)
+
+You already stop and ask the user at every phase boundary. At each of those
+stops you **must**:
+
+1. Run the checker:
+
+   ```bash
+   python skills/p2c/scripts/trace.py --workspace p2c-workspace --stage <stage> --apply-status
+   ```
+
+   Stage mapping: phases 1 and 2 → `requirements`, phase 3 → `design`,
+   phase 4 → `handoff`, phase 5 and later → `build`. Always pass `--stage`
+   explicitly. Phase 1 is included deliberately: the ritual runs at *every*
+   phase boundary, and `requirements` is the right stage there even though
+   discovery has produced few sidecars yet — it is the only stage whose
+   checks are meaningful before design exists.
+
+2. Include in the phase summary — not optional, not summarised away:
+   - open-finding count, with IDs and the requirement each challenges
+   - every staleness entry, naming which artifacts lost sign-off
+   - the gap list grouped by kind
+   - any finding at `len(history) >= 3`, flagged for escalation
+
+   **Read `traceability/gaps.md` to build this — the command's output is not
+   enough.** `trace.py` prints the gaps and the staleness entries to stdout
+   and nothing else. The iteration count and the escalate marker live only in
+   the **Findings** table, which is written into `traceability/gaps.md` and
+   `traceability/rtm.md` (and as the `findings` array in
+   `traceability/index.json`). A summary built from command output alone will
+   silently omit the escalation flag — the one signal in this loop whose whole
+   job is to stop it.
+
+3. Never write `status: delivered` into `status.json` while the checker's
+   most recent run reported any gaps or staleness — exit code 1, or a
+   Gaps/Staleness table in `traceability/gaps.md` with rows in it — without
+   naming those gaps in the summary. Note `gaps.md` always exists and is
+   never byte-empty: a clean run writes "No gaps found." into it, so judge
+   by the exit code or the table rows, never by file size. Advancing is
+   permitted — this is advisory — but advancing *quietly* is not.
+
+The checker reports; it never blocks. Exit code 1 means gaps or staleness
+exist, not that the phase cannot advance. Teams wanting hard enforcement wire
+the exit code into CI.
+
+When the user signs a gate, record it in `p2c-workspace/config.json`:
+
+```json
+{"gates": {"gate1": {"status": "signed"}}}
+```
+
+`gate1` → design, `gate2` → handoff, `gate3` → build. `status.json` remains
+your phase tracker; `config.json` is only the gate record.
 
 ## Coverage discipline
 

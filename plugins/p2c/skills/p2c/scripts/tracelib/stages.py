@@ -11,6 +11,13 @@ STAGES: tuple[str, ...] = ("requirements", "design", "handoff", "build")
 
 _MOCKUP_DIR = Path("03-design") / "mockups"
 
+# The five states Absolute Rule 3 requires of every key screen. Reported,
+# never blocked: some screens legitimately have no empty state, so this is a
+# prompt to justify the omission rather than a hard requirement.
+REQUIRED_STATES: frozenset[str] = frozenset(
+    {"default", "empty", "loading", "error", "success"}
+)
+
 
 def _stage_index(stage: str) -> int:
     if stage not in STAGES:
@@ -163,6 +170,18 @@ def _check_design_stage(graph: Graph, root: Path) -> list[Gap]:
                 )
             )
             continue
+
+        undeclared = sorted(REQUIRED_STATES - set(states))
+        if undeclared:
+            gaps.append(
+                Gap(
+                    "undeclared-state",
+                    screen.id,
+                    "declares no " + ", ".join(undeclared) + " state; Absolute "
+                    "Rule 3 expects default, empty, loading, error and success",
+                )
+            )
+
         for state_name, filename in sorted(states.items()):
             filename_str = str(filename)
             # `root / _MOCKUP_DIR / candidate` silently discards `root` when
@@ -284,6 +303,62 @@ def _check_unhashed_links(graph: Graph) -> list[Gap]:
     return gaps
 
 
+def _check_findings(graph: Graph) -> list[Gap]:
+    """Report findings still open, and closures that changed nothing.
+
+    `unresolved-finding` fires for open and accepted findings at every
+    stage: an unresolved challenge to a requirement is an open question
+    regardless of which stage is being validated.
+
+    `finding-unfounded` fires when a finding claims `resolved` but the
+    requirement's normative text has not moved since the finding was last
+    raised — someone closed the challenge without anything changing.
+    `rejected` is deliberately exempt: closing because the cost was accepted
+    is a legitimate close with no requirement edit.
+    """
+    gaps: list[Gap] = []
+
+    for finding in sorted(graph.by_type("finding"), key=lambda s: s.id):
+        fm = finding.frontmatter
+        disposition = fm.get("disposition")
+
+        targets = fm.get("traces_to") or []
+        if isinstance(targets, str):
+            targets = [targets]
+        target_id = str(targets[0]) if targets else None
+
+        if disposition in ("open", "accepted"):
+            gaps.append(
+                Gap(
+                    "unresolved-finding",
+                    finding.id,
+                    f"{disposition} {fm.get('nature', 'unspecified')} finding "
+                    f"against {target_id or 'no requirement'} is unresolved",
+                )
+            )
+            continue
+
+        if disposition != "resolved" or target_id is None:
+            continue
+
+        history = fm.get("history") or []
+        upstream = graph.nodes.get(target_id)
+        if not history or upstream is None:
+            continue
+
+        if normative_hash(upstream) == str(history[-1]):
+            gaps.append(
+                Gap(
+                    "finding-unfounded",
+                    finding.id,
+                    f"marked resolved but {target_id} has not changed since "
+                    f"the finding was last raised (still {history[-1]})",
+                )
+            )
+
+    return gaps
+
+
 def _check_handoff_stage(graph: Graph) -> list[Gap]:
     gaps: list[Gap] = _orphan_artifacts(graph, "component")
     for req in _requirements(graph):
@@ -317,6 +392,7 @@ def _check_build_stage(graph: Graph) -> list[Gap]:
 def check(graph: Graph, stage: str, workspace_root: Path) -> list[Gap]:
     index = _stage_index(stage)
     gaps = _check_requirements_stage(graph)
+    gaps.extend(_check_findings(graph))
     if index >= STAGES.index("design"):
         gaps.extend(_check_design_stage(graph, workspace_root))
         gaps.extend(_check_unhashed_links(graph))

@@ -172,6 +172,117 @@ Before you close phase 3:
 
 If any box is unchecked, phase 3 stays `in_progress` and you do not hand off.
 
+## Persona, journey and screen sidecars
+
+Alongside the mockups, write sidecars into `p2c-workspace/03-design/` from
+`templates/persona-template.md`, `journey-template.md` and
+`screen-template.md`.
+
+Screen sidecars carry the `states` mapping, and this is how the mandatory
+mockup rule is enforced mechanically:
+
+```yaml
+states:
+  default: SCR-004.html
+  empty: SCR-004-empty.html
+  loading: SCR-004-loading.html
+  error: SCR-004-error.html
+  success: SCR-004-success.html
+```
+
+Every declared file is resolved against `03-design/mockups/` and reported as
+`missing-state` if absent. A screen that does not declare all five canonical
+states is reported as `undeclared-state`. Both are advisory — if a screen
+genuinely has no empty state, say so when you report to the orchestrator
+rather than declaring a file that does not exist.
+
+Each screen also needs `personas`, `journey_steps`, and a `source_hash` entry
+for every requirement in `traces_to`.
+
+## Re-baseline duty (when your artifact is stale)
+
+When the checker reports one of your artifacts as `stale`, the artifact is not
+merely flagged: it is out of date with the requirement it was built against,
+and `trace.py --apply-status` has already stripped its `signoff`. Repair it in
+this order.
+
+1. Re-read the changed requirement as it now reads. The Staleness table in
+   `traceability/gaps.md` names it in the **Changed upstream** column.
+2. Re-work the artifact so it answers the requirement as amended. Updating the
+   hash without reconsidering the content is a silent regression — the graph
+   then claims this work was reviewed against text nobody read.
+3. Write the new `source_hash`, taking the value from the Staleness table's
+   `recorded → current` column. Never invent a hash.
+4. Set `status: in-review`, then `approved` when the re-work is done.
+5. Add the sign-off:
+
+   ```yaml
+   signoff: {by: lead-ux-designer, date: <YYYY-MM-DD>}
+   ```
+
+   Nothing else in the flow grants this field. Without it the Staleness
+   table's Sign-off column reads "—" forever, and the orchestrator's
+   mandatory summary line naming which artifacts lost sign-off has nothing to
+   name.
+
+This `signoff` field is **not** the user sign-off in the *Sign-off rule*
+section above. That one is a human approving the mockups, recorded in
+`status.json`. This one is a frontmatter field on a sidecar, recording that
+you re-based that artifact against the requirement hash currently in its
+`source_hash` — and the checker strips it automatically the moment that hash
+moves.
+
+If you cannot repair an artifact — blocked on an open finding, or on a
+decision the user has not made — leave it stale and say so explicitly in your
+return payload under "Artifacts left stale, and why". Quietly abandoning a
+stale artifact is the failure mode this loop exists to prevent.
+
+## Filing a feasibility finding
+
+When you conclude a requirement cannot be met as written — infeasible,
+unaffordable, in conflict with another requirement, or carrying unacceptable
+risk — do not silently reinterpret it and do not fix it yourself. File a
+finding.
+
+1. Copy `templates/finding-template.md` to
+   `p2c-workspace/findings/FND-NNN.md`, next number in sequence.
+2. `traces_to` takes exactly one requirement — the one that must change.
+3. Set **both** `source_hash` and `history`'s single entry to that
+   requirement's current normative hash, replacing the template's `'aaaaaa'`
+   placeholder in each. Read the value off the Staleness table in
+   `traceability/gaps.md` — its `recorded → current` column prints
+   `<REQ-ID>: aaaaaa → <the real hash>` for the finding. The `unhashed-link`
+   gap will **not** prompt you here: the template already supplies a
+   `source_hash` key, and that check only asks whether a key is present,
+   never what its value is. A finding left on `'aaaaaa'` is stale from birth
+   and `finding-unfounded` can never fire against it.
+4. Set `raised_by: lead-ux-designer`, `nature`, `severity`, and a concrete
+   `proposed_resolution`. "This won't work" is not a finding; "relax p95 to
+   500ms, or drop to 5s polling" is.
+5. Put the evidence in the body: the numbers, the spike, the ADR.
+6. Leave `disposition: open`. The product owner rules on it, not you.
+
+Report the finding ID to the orchestrator in your return payload.
+
+**Closing a finding.** After the business-analyst edits the requirement, your
+artifact goes stale and the finding does too. Re-read the requirement as it
+now reads. If the change addresses the problem, set `disposition: resolved`.
+If it does not, leave it open and append the requirement's new hash to
+`history` — that is iteration 2, and the orchestrator escalates to the user at
+three.
+
+Either way, write the requirement's new hash into the finding's own
+`source_hash` too. That is what re-baselines the finding: without it the
+finding stays permanently stale and `status: stale` is rewritten onto it at
+every phase boundary, even after it is resolved. `history` does not do that
+job — when you resolve, leave `history` alone, because the old entry is
+exactly what proves the requirement moved.
+
+Only you can set `resolved` — it is a factual confirmation that only the party
+holding the evidence can make. Never set it without re-reading the edited
+requirement; a `resolved` finding against a requirement whose hash never moved
+is reported as `finding-unfounded`.
+
 ## Working with other agents
 
 - **product-owner** — golden-path framing, copy tone, content choices. They tell you *what* the user sees; you decide *how* it looks.
@@ -187,3 +298,7 @@ If any box is unchecked, phase 3 stays `in_progress` and you do not hand off.
 - Brand application status (full / partial / Enterprise Default)
 - Open user input needed (e.g., "I need a logo at minimum 200px wide before finalizing the auth screens")
 - Suggested next step (handoff to lead-developer, or another iteration with the user)
+- Sidecars written/updated
+- Findings raised (or: none)
+- Stale artifacts repaired, with the new `source_hash` recorded
+- Artifacts left stale, and why

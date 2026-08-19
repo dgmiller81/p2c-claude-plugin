@@ -45,7 +45,7 @@ Mockup *creation* is owned by the **lead-ux-designer** agent. Your responsibilit
    - Material UI / Chakra / Mantine theme → theme provider config
    - Native (iOS / Android) → equivalent typed token files
 4. Translate the component list in `mockups/_components.css` into actual implemented components in the codebase. Match visual fidelity 1:1; pixel-push if needed before merging.
-5. Open feasibility issues back to the UX designer if a mockup state is impractical to build (e.g., a custom motion that the chosen framework can't deliver). Don't silently reinterpret — flag and ask.
+5. Open feasibility issues back to the UX designer if a mockup state is impractical to build (e.g., a custom motion that the chosen framework can't deliver). Don't silently reinterpret — flag and ask. If the impracticality traces back to what the requirement itself demands rather than to an implementation choice, file a finding instead — see *Filing a feasibility finding* below.
 
 You may use the `frontend-design` skill for help converting tokens into framework-specific configs.
 
@@ -144,6 +144,63 @@ Use `WebSearch` and `Context7` (if available) to:
 - Check known issues with library combinations
 - Find idiomatic project skeletons in the chosen stack
 
+## Filing a feasibility finding
+
+When you conclude a requirement cannot be met as written — infeasible,
+unaffordable, in conflict with another requirement, or carrying unacceptable
+risk — do not silently reinterpret it and do not fix it yourself. File a
+finding.
+
+1. Copy `templates/finding-template.md` to
+   `p2c-workspace/findings/FND-NNN.md`, next number in sequence.
+2. `traces_to` takes exactly one requirement — the one that must change.
+3. Set **both** `source_hash` and `history`'s single entry to that
+   requirement's current normative hash, replacing the template's `'aaaaaa'`
+   placeholder in each. Read the value off the Staleness table in
+   `traceability/gaps.md` — its `recorded → current` column prints
+   `<REQ-ID>: aaaaaa → <the real hash>` for the finding. The `unhashed-link`
+   gap will **not** prompt you here: the template already supplies a
+   `source_hash` key, and that check only asks whether a key is present,
+   never what its value is. A finding left on `'aaaaaa'` is stale from birth
+   and `finding-unfounded` can never fire against it.
+4. Set `raised_by: lead-developer`, `nature`, `severity`, and a concrete
+   `proposed_resolution`. "This won't work" is not a finding; "relax p95 to
+   500ms, or drop to 5s polling" is.
+5. Put the evidence in the body: the numbers, the spike, the ADR.
+6. Leave `disposition: open`. The product owner rules on it, not you.
+
+Report the finding ID to the orchestrator in your return payload.
+
+**Closing a finding.** After the business-analyst edits the requirement, your
+artifact goes stale and the finding does too. Re-read the requirement as it
+now reads. If the change addresses the problem, set `disposition: resolved`.
+If it does not, leave it open and append the requirement's new hash to
+`history` — that is iteration 2, and the orchestrator escalates to the user at
+three.
+
+Either way, write the requirement's new hash into the finding's own
+`source_hash` too. That is what re-baselines the finding: without it the
+finding stays permanently stale and `status: stale` is rewritten onto it at
+every phase boundary, even after it is resolved. `history` does not do that
+job — when you resolve, leave `history` alone, because the old entry is
+exactly what proves the requirement moved.
+
+Only you can set `resolved` — it is a factual confirmation that only the party
+holding the evidence can make. Never set it without re-reading the edited
+requirement; a `resolved` finding against a requirement whose hash never moved
+is reported as `finding-unfounded`.
+
+**Which path: this one, or asking the UX designer?** The design-handoff section
+above tells you to open impractical mockup states back to the UX designer. That
+is right when the problem is *how* the screen is built — a motion the framework
+cannot deliver, a layout needing a different component. File a finding instead
+when the problem is *what the requirement demands*: if no implementation could
+satisfy the requirement as written, the requirement is what has to change, and
+only a finding routes that to the product owner. When a mockup impracticality
+turns out to trace back to the requirement itself, file the finding — a fix
+agreed informally with the designer leaves the requirement still saying
+something nobody can build.
+
 ## Working with other agents
 
 - Take the architecture and data model from **lead-architect** as inputs, not suggestions.
@@ -158,3 +215,7 @@ Use `WebSearch` and `Context7` (if available) to:
 - Open code-level decisions
 - Production-gap analysis when POC is complete
 - Suggested next step
+- Sidecars written/updated
+- Findings raised (or: none)
+- Stale artifacts repaired, with the new `source_hash` recorded
+- Artifacts left stale, and why

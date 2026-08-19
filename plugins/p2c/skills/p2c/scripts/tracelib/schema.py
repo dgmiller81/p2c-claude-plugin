@@ -28,6 +28,7 @@ REQUIRED_BY_TYPE: dict[str, tuple[str, ...]] = {
     "component": ("traces_to",),
     "story": ("traces_to",),
     "test": ("traces_to",),
+    "finding": ("traces_to", "history", "raised_by", "nature", "disposition"),
 }
 
 ENUMS: dict[str, tuple[str, ...]] = {
@@ -35,6 +36,9 @@ ENUMS: dict[str, tuple[str, ...]] = {
     "surface": ("ui", "system"),
     "priority": ("must", "should", "could", "wont"),
     "status": ("draft", "in-review", "approved", "stale", "baselined"),
+    "nature": ("infeasible", "cost", "conflict", "risk"),
+    "severity": ("blocking", "material", "minor"),
+    "disposition": ("open", "accepted", "rejected", "resolved"),
 }
 
 # Fields that are allowed to be present-but-empty without being a schema
@@ -136,6 +140,111 @@ def _source_hash_errors(
     return errors
 
 
+def _history_errors(
+    fm: dict[str, Any], path: Path, subject: str
+) -> list[SchemaError]:
+    """`history` is the finding's raise log: one hash per raise.
+
+    len(history) is the review-iteration count, and history[-1] is what the
+    finding-unfounded check compares the requirement's current hash against,
+    so an unquoted entry silently breaks the check the same way an unquoted
+    source_hash does.
+    """
+    if "history" not in fm:
+        return []
+
+    value = fm.get("history")
+    if not isinstance(value, (list, tuple)) or not value:
+        return [
+            SchemaError(
+                path,
+                subject,
+                "history",
+                "'history' must be a non-empty list of quoted 6-character "
+                "hex hashes, oldest raise first",
+            )
+        ]
+
+    errors: list[SchemaError] = []
+    for entry in value:
+        if not isinstance(entry, str):
+            errors.append(
+                SchemaError(
+                    path,
+                    subject,
+                    "history",
+                    f"history entry {entry!r} must be a quoted 6-character hex "
+                    "string; unquoted values like 000000 are parsed as numbers "
+                    "by YAML and lose their padding",
+                )
+            )
+        elif not HASH_PATTERN.match(entry):
+            errors.append(
+                SchemaError(
+                    path,
+                    subject,
+                    "history",
+                    "history entry must be a quoted 6-character lowercase hex "
+                    f"string, got {entry!r}",
+                )
+            )
+    return errors
+
+
+def _finding_target_errors(
+    fm: dict[str, Any], path: Path, subject: str
+) -> list[SchemaError]:
+    """A finding challenges exactly one requirement.
+
+    `history` and the finding-unfounded check both assume a single target; a
+    conflict between two requirements is filed as two findings.
+    """
+    targets = fm.get("traces_to")
+    if isinstance(targets, str):
+        targets = [targets]
+    if not isinstance(targets, (list, tuple)) or len(targets) != 1:
+        return [
+            SchemaError(
+                path,
+                subject,
+                "traces_to",
+                "a finding must trace to exactly one requirement",
+            )
+        ]
+    return []
+
+
+def _signoff_errors(
+    fm: dict[str, Any], path: Path, subject: str
+) -> list[SchemaError]:
+    """`signoff` records who reviewed this artifact and when.
+
+    The reviewed-against hash is deliberately not stored here: it would
+    duplicate `source_hash`, and staleness.apply_status strips signoff the
+    moment source_hash goes stale, so a present signoff already means
+    "reviewed against the currently recorded hashes".
+    """
+    if "signoff" not in fm:
+        return []
+
+    value = fm.get("signoff")
+    if not isinstance(value, dict):
+        return [
+            SchemaError(
+                path,
+                subject,
+                "signoff",
+                "'signoff' must be a mapping with 'by' and 'date'",
+            )
+        ]
+
+    return [
+        SchemaError(path, subject, "signoff", f"signoff is missing '{name}'")
+        for name in ("by", "date")
+        if not value.get(name)
+    ]
+
+
 def validate(sc: Sidecar) -> list[SchemaError]:
     errors: list[SchemaError] = []
     fm = sc.frontmatter
@@ -201,6 +310,10 @@ def validate(sc: Sidecar) -> list[SchemaError]:
 
     errors.extend(_states_errors(fm, sc.path, subject))
     errors.extend(_source_hash_errors(fm, sc.path, subject))
+    errors.extend(_history_errors(fm, sc.path, subject))
+    errors.extend(_signoff_errors(fm, sc.path, subject))
+    if declared == "finding":
+        errors.extend(_finding_target_errors(fm, sc.path, subject))
 
     return errors
 

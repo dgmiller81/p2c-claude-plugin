@@ -61,6 +61,11 @@ Code is written **against** these mockups — the POC should look like the mocku
    5. Sample data seed (use the same realistic sample data the mockups use, where possible)
    6. README + DEMO.md
    7. production-gap.md
+4. At every phase boundary, run the traceability checker and report its output
+   as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+   Open findings, staleness and gaps are named in the phase summary every time.
+   The checker is advisory — it never blocks a phase from advancing, but a
+   phase may not advance without its output being reported.
 
 ## Deliverables
 

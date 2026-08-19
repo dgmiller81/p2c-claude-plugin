@@ -88,3 +88,8 @@ Run `python skills/p2c/scripts/estimate_cost.py --plan p2c-workspace/plan/sprint
 - Confirm before installing global tooling.
 - Pause after the POC works locally for the user to validate before producing the prod plan.
 - Pause after the cost estimate is generated for the user to review before locking the package.
+- At every phase boundary, run the traceability checker and report its output
+  as described under "The phase-boundary ritual" in `skills/p2c/SKILL.md`.
+  Open findings, staleness and gaps are named in the phase summary every time.
+  The checker is advisory — it never blocks a phase from advancing, but a
+  phase may not advance without its output being reported.

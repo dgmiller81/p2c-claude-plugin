@@ -8,6 +8,10 @@ journey_steps: [{{STEP_ID}}]
 mockup: {{ID}}.html
 states:
   default: {{ID}}.html
+  empty: {{ID}}-empty.html
+  loading: {{ID}}-loading.html
+  error: {{ID}}-error.html
+  success: {{ID}}-success.html
 terminal: false
 source_hash: {{{REQ_ID}}: 'aaaaaa'}
 status: draft
@@ -40,7 +44,9 @@ screen was built. **Every requirement in `traces_to` must have an entry here.**
 A missing entry is not "no staleness" — it is *no staleness detection*, forever:
 `trace.py` compares only what is recorded, so an unrecorded requirement can be
 rewritten from top to bottom and this screen will still report `ok`. `trace.py`
-reports a missing entry as an `unhashed-link` gap and fails the gate.
+reports a missing entry as an `unhashed-link` gap and the run exits 1; the
+checker is advisory and never blocks a phase, but the gap stays on the board
+until the entry is written.
 
 The shipped placeholder `'aaaaaa'` is **deliberately wrong**. Replace it with the
 requirement's current hash, which `trace.py` prints for you: the `unhashed-link`
@@ -54,3 +60,22 @@ Values MUST be quoted:
 Unquoted values that are all digits with a leading zero are parsed by YAML as
 numbers and lose their padding, which reports this screen as stale when nothing
 has changed.
+
+## Sign-off
+
+When this artifact has been reviewed and approved, add:
+
+```yaml
+status: approved
+signoff: {by: <agent>, date: <YYYY-MM-DD>, gate: <gate1|gate2|gate3>}
+```
+
+Do not record the reviewed-against hash here — it would duplicate
+`source_hash`, and `trace.py --apply-status` strips `signoff` the moment
+`source_hash` goes stale. A present `signoff` therefore already means
+"reviewed against the hashes currently recorded in this file".
+
+When an upstream requirement changes, this artifact is set to `status: stale`
+and its `signoff` is removed. Re-working it means: re-read the changed
+requirement, update this artifact, write the new `source_hash`, set
+`status: in-review` then `approved`, and re-sign.
